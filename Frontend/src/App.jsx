@@ -5,7 +5,6 @@ import { AuthProvider, useAuth } from "./context/AuthContext";
 import { LoginForm } from "./components/auth/LoginForm";
 import { RegisterForm } from "./components/auth/RegisterForm";
 import { VerifyEmailForm } from "./components/auth/VerifyEmailForm";
-import { UserProfile } from "./components/profile/UserProfile";
 import { ForgotPasswordForm } from "./components/auth/ForgotPasswordForm";
 import { SocialAuthCallback } from "./components/auth/SocialAuthCallback";
 import { LoadingSpinner } from "./components/common/LoadingSpinner";
@@ -39,7 +38,7 @@ const MainRoute = () => {
   if (isLoading) return <LoadingSpinner />;
 
   return isAuthenticated ? (
-    <Navigate to="/profile" />
+    <Navigate to="/review" />
   ) : (
     <Navigate to="/login" />
   );
@@ -95,14 +94,6 @@ function App() {
                 <Route path="/auth/callback" element={<SocialAuthCallback />} />
 
                 {/* Rute protejate */}
-                <Route
-                  path="/profile"
-                  element={
-                    <ProtectedRoute>
-                      <UserProfile />
-                    </ProtectedRoute>
-                  }
-                />
                 <Route
                   path="/review"
                   element={

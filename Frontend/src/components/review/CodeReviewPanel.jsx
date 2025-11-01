@@ -32,7 +32,7 @@ const CodeReviewPanel = () => {
   const [fileName, setFileName] = useState("");
   const [language, setLanguage] = useState("javascript");
   const [reviewMode, setReviewMode] = useState("code"); // 'code' sau 'diff'
-  
+
   const [loading, setLoading] = useState(false);
   const [reviewResult, setReviewResult] = useState(null);
   const [error, setError] = useState(null);
@@ -154,7 +154,7 @@ const CodeReviewPanel = () => {
           </Alert>
         )}
 
-        <Tabs value={reviewMode} onTabChange={setReviewMode}>
+        <Tabs value={reviewMode} onChange={setReviewMode}>
           <Tabs.List>
             <Tabs.Tab value="code" leftSection={<IconCode size={16} />}>
               Full Code Review
@@ -196,6 +196,8 @@ const CodeReviewPanel = () => {
                     input: {
                       fontFamily: "monospace",
                       fontSize: "14px",
+                      height: "500px",
+                      overflow: "auto",
                     },
                   }}
                 />
@@ -205,7 +207,9 @@ const CodeReviewPanel = () => {
                     leftSection={<IconUpload size={16} />}
                     onClick={handleReview}
                     loading={loading}
-                    disabled={!code.trim() || ollamaStatus?.status !== "healthy"}
+                    disabled={
+                      !code.trim() || ollamaStatus?.status !== "healthy"
+                    }
                   >
                     Efectuează Review
                   </Button>
@@ -243,7 +247,9 @@ const CodeReviewPanel = () => {
                     leftSection={<IconUpload size={16} />}
                     onClick={handleReview}
                     loading={loading}
-                    disabled={!gitDiff.trim() || ollamaStatus?.status !== "healthy"}
+                    disabled={
+                      !gitDiff.trim() || ollamaStatus?.status !== "healthy"
+                    }
                   >
                     Efectuează Review
                   </Button>
@@ -334,4 +340,3 @@ const CodeReviewPanel = () => {
 };
 
 export default CodeReviewPanel;
-
