@@ -25,7 +25,7 @@ namespace Backend
                 {
                     // Citește Frontend URL din configurație
                     var frontendUrl = builder.Configuration["App:FrontendUrl"] ?? "http://localhost:5173";
-                    
+
                     policy.WithOrigins("http://localhost:5173", "https://localhost:5173", frontendUrl)
                           .AllowAnyMethod()
                           .AllowAnyHeader()
@@ -118,11 +118,7 @@ namespace Backend
             builder.Services.AddScoped<IEmailService, EmailService>();
             builder.Services.AddScoped<ISocialAuthService, SocialAuthService>();
 
-            // Înregistrare servicii AI
-            builder.Services.AddHttpClient<AiService>();
-            builder.Services.AddScoped<AiService>();
-            
-            // Înregistrare servicii pentru AI Code Review
+            // Înregistrare servicii pentru AI Code Review (Ollama Local)
             builder.Services.AddHttpClient<LLMClient>();
             builder.Services.AddScoped<LLMClient>();
             builder.Services.AddScoped<AIReviewService>();

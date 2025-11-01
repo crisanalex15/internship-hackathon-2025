@@ -17,8 +17,8 @@ namespace Backend.Services.AI
         private readonly string _promptTemplate;
 
         public AIReviewService(
-            LLMClient llmClient, 
-            AuthDbContext dbContext, 
+            LLMClient llmClient,
+            AuthDbContext dbContext,
             ILogger<AIReviewService> logger,
             IWebHostEnvironment environment)
         {
@@ -59,12 +59,15 @@ namespace Backend.Services.AI
                 }
 
                 // Pregătește prompt-ul
-                var codeToReview = !string.IsNullOrWhiteSpace(request.Code) 
-                    ? request.Code 
+                var codeToReview = !string.IsNullOrWhiteSpace(request.Code)
+                    ? request.Code
                     : request.GitDiff;
-                
+
                 var reviewType = !string.IsNullOrWhiteSpace(request.Code) ? "full" : "diff";
-                var prompt = _promptTemplate.Replace("<<<CODE_OR_DIFF>>>", codeToReview);
+                var prompt = _promptTemplate
+                    .Replace("<<<CODE_OR_DIFF>>>", codeToReview)
+                    .Replace("<<<FILE_NAME>>>", request.FileName)
+                    .Replace("<<<LANGUAGE>>>", request.Language);
 
                 // Trimite către LLM
                 var llmResponse = await _llmClient.SendPromptAsync(prompt, jsonMode: true);
@@ -86,7 +89,7 @@ namespace Backend.Services.AI
                 // Salvează în baza de date
                 await SaveReviewHistoryAsync(request, reviewResult, userId, reviewType);
 
-                _logger.LogInformation("Code review finalizat cu succes: {Count} probleme găsite", 
+                _logger.LogInformation("Code review finalizat cu succes: {Count} probleme găsite",
                     reviewResult.Findings.Count);
 
                 return reviewResult;
@@ -236,7 +239,7 @@ Be clear, concise, and educational.";
                 // Curăță răspunsul de eventual text în plus
                 var jsonStart = llmResponse.IndexOf('{');
                 var jsonEnd = llmResponse.LastIndexOf('}');
-                
+
                 if (jsonStart >= 0 && jsonEnd > jsonStart)
                 {
                     llmResponse = llmResponse.Substring(jsonStart, jsonEnd - jsonStart + 1);
@@ -262,9 +265,9 @@ Be clear, concise, and educational.";
         /// Salvează rezultatele review-ului în baza de date
         /// </summary>
         private async Task SaveReviewHistoryAsync(
-            ReviewRequest request, 
-            ReviewResponse response, 
-            string userId, 
+            ReviewRequest request,
+            ReviewResponse response,
+            string userId,
             string reviewType)
         {
             try
@@ -274,14 +277,14 @@ Be clear, concise, and educational.";
                     Timestamp = DateTime.UtcNow,
                     File = request.FileName ?? "unknown",
                     FindingsJson = JsonSerializer.Serialize(response.Findings),
-                    EffortEstimate = response.EffortEstimate != null 
-                        ? JsonSerializer.Serialize(response.EffortEstimate) 
+                    EffortEstimate = response.EffortEstimate != null
+                        ? JsonSerializer.Serialize(response.EffortEstimate)
                         : null,
                     UserId = userId,
                     ReviewType = reviewType,
                     IssuesCount = response.Findings.Count,
-                    MaxSeverity = response.Findings.Any() 
-                        ? response.Findings.Max(f => f.Severity) 
+                    MaxSeverity = response.Findings.Any()
+                        ? response.Findings.Max(f => f.Severity)
                         : "none"
                 };
 
@@ -327,11 +330,16 @@ Be clear, concise, and educational.";
             return @"You are a strict senior software engineer performing code review.
 Analyze the following code and return a JSON object with findings and effort estimate.
 
+File being reviewed: <<<FILE_NAME>>>
+Programming Language: <<<LANGUAGE>>>
+
+IMPORTANT: Use ""<<<FILE_NAME>>>"" as the file name for ALL findings!
+
 Return ONLY valid JSON in this structure:
 {
   ""findings"": [
     {
-      ""file"": ""filename"",
+      ""file"": ""<<<FILE_NAME>>>"",
       ""lineStart"": 0,
       ""lineEnd"": 0,
       ""severity"": ""medium"",

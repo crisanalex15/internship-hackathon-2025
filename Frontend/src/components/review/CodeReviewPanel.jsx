@@ -13,6 +13,7 @@ import {
   Text,
   Tabs,
   Select,
+  px,
 } from "@mantine/core";
 import {
   IconUpload,
@@ -126,18 +127,28 @@ const CodeReviewPanel = () => {
     <Container size="xl" py="xl">
       <Stack spacing="lg">
         <Group position="apart">
-          <Title order={1}>🤖 AI Code Review Assistant</Title>
-          {ollamaStatus && (
-            <Badge
-              color={ollamaStatus.status === "healthy" ? "green" : "red"}
-              variant="filled"
-              size="lg"
-            >
-              {ollamaStatus.status === "healthy"
-                ? "Ollama Online"
-                : "Ollama Offline"}
-            </Badge>
-          )}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              width: "100%",
+              gap: "10px",
+            }}
+          >
+            <Title order={1}>AI Code Review Assistant</Title>
+            {ollamaStatus && (
+              <Badge
+                color={ollamaStatus.status === "healthy" ? "green" : "red"}
+                variant="filled"
+                size="lg"
+              >
+                {ollamaStatus.status === "healthy"
+                  ? "Ollama Online"
+                  : "Ollama Offline"}
+              </Badge>
+            )}
+          </div>
         </Group>
 
         {ollamaStatus && ollamaStatus.status !== "healthy" && (
@@ -211,7 +222,7 @@ const CodeReviewPanel = () => {
                       !code.trim() || ollamaStatus?.status !== "healthy"
                     }
                   >
-                    Efectuează Review
+                    Efectueaza Review
                   </Button>
                 </Group>
               </Stack>
@@ -251,7 +262,7 @@ const CodeReviewPanel = () => {
                       !gitDiff.trim() || ollamaStatus?.status !== "healthy"
                     }
                   >
-                    Efectuează Review
+                    Efectueaza Review
                   </Button>
                 </Group>
               </Stack>
@@ -328,7 +339,7 @@ const CodeReviewPanel = () => {
                   title="Cod curat!"
                   color="green"
                 >
-                  Nu s-au găsit probleme în codul analizat. Bună treabă! 🎉
+                  Nu s-au găsit probleme în codul analizat. Bună treabă!
                 </Alert>
               )}
             </Stack>

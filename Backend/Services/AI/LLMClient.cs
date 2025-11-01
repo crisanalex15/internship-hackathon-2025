@@ -21,11 +21,11 @@ namespace Backend.Services.AI
             _httpClient = httpClient;
             _configuration = configuration;
             _logger = logger;
-            
+
             // Configurare URL Ollama (default: http://localhost:11434)
             _ollamaBaseUrl = _configuration["Ollama:BaseUrl"] ?? "http://localhost:11434";
             _defaultModel = _configuration["Ollama:DefaultModel"] ?? "codellama";
-            
+
             _httpClient.Timeout = TimeSpan.FromMinutes(5); // LLM poate dura mai mult
         }
 
@@ -44,33 +44,33 @@ namespace Backend.Services.AI
                     Model = selectedModel,
                     Messages = new List<OllamaMessage>
                     {
-                        new OllamaMessage 
-                        { 
-                            Role = "system", 
-                            Content = "You are a senior software engineer performing code review. Always respond with valid JSON only, no additional text." 
+                        new OllamaMessage
+                        {
+                            Role = "system",
+                            Content = "You are a senior software engineer performing code review. Always respond with valid JSON only, no additional text."
                         },
-                        new OllamaMessage 
-                        { 
-                            Role = "user", 
-                            Content = prompt 
+                        new OllamaMessage
+                        {
+                            Role = "user",
+                            Content = prompt
                         }
                     },
                     Stream = false,
                     Format = jsonMode ? "json" : null,
                     Options = new OllamaOptions
                     {
-                        Temperature = 0.1, // Low temperature pentru consistență
-                        TopP = 0.9,
+                        Temperature = 0.0, // Foarte jos pentru răspunsuri exacte, fără inventare
+                        TopP = 0.1, // Limitează creativitatea
                         NumPredict = 4096
                     }
                 };
 
-                var json = JsonSerializer.Serialize(requestBody, new JsonSerializerOptions 
-                { 
+                var json = JsonSerializer.Serialize(requestBody, new JsonSerializerOptions
+                {
                     DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
                     PropertyNamingPolicy = JsonNamingPolicy.CamelCase
                 });
-                
+
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
 
                 var response = await _httpClient.PostAsync($"{_ollamaBaseUrl}/api/chat", content);
@@ -78,12 +78,12 @@ namespace Backend.Services.AI
 
                 if (!response.IsSuccessStatusCode)
                 {
-                    _logger.LogError("Ollama API a returnat status code: {StatusCode}, Content: {Content}", 
+                    _logger.LogError("Ollama API a returnat status code: {StatusCode}, Content: {Content}",
                         response.StatusCode, responseContent);
                     throw new Exception($"Ollama API error: {response.StatusCode}");
                 }
 
-                var chatResponse = JsonSerializer.Deserialize<OllamaChatResponse>(responseContent, 
+                var chatResponse = JsonSerializer.Deserialize<OllamaChatResponse>(responseContent,
                     new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
                 var aiResponse = chatResponse?.Message?.Content ?? string.Empty;
@@ -116,7 +116,7 @@ namespace Backend.Services.AI
             try
             {
                 var response = await _httpClient.GetAsync($"{_ollamaBaseUrl}/api/tags");
-                
+
                 if (!response.IsSuccessStatusCode)
                 {
                     _logger.LogWarning("Nu s-au putut obține modelele disponibile de la Ollama");
@@ -127,7 +127,7 @@ namespace Backend.Services.AI
                 var modelsResponse = JsonSerializer.Deserialize<OllamaModelsResponse>(content,
                     new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
-                return modelsResponse?.Models?.Select(m => m.Name ?? "").Where(n => !string.IsNullOrEmpty(n)).ToList() 
+                return modelsResponse?.Models?.Select(m => m.Name ?? "").Where(n => !string.IsNullOrEmpty(n)).ToList()
                     ?? new List<string>();
             }
             catch (Exception ex)
