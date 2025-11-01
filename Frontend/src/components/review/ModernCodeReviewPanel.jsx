@@ -30,6 +30,7 @@ import {
   IconMinimize,
   IconSearch,
   IconDownload,
+  IconGitCompare,
 } from "@tabler/icons-react";
 import { reviewService } from "../../services/review.service";
 import codeFileService from "../../services/codefile.service";
@@ -62,6 +63,7 @@ const ModernCodeReviewPanel = ({ initialCode = "", initialFileName = "", project
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [uploadMode, setUploadMode] = useState(false);
   const [showAutoFix, setShowAutoFix] = useState(false);
+  const [showDiffViewer, setShowDiffViewer] = useState(false);
   const [appliedFixes, setAppliedFixes] = useState(new Set());
   const [showFixAppliedAnimation, setShowFixAppliedAnimation] = useState(false);
   const [currentFileId, setCurrentFileId] = useState(null);
@@ -732,19 +734,35 @@ const ModernCodeReviewPanel = ({ initialCode = "", initialFileName = "", project
                         </div>
                       )}
 
-                      {/* Diff Viewer */}
-                      {currentFileId && hasUnsavedChanges && (
-                        <div style={{ marginBottom: "16px" }}>
-                          <DiffViewer fileId={currentFileId} />
-                        </div>
-                      )}
-
                       <ModernFindingsList 
                         findings={filteredFindings} 
                         onApplyFix={applyFixToCode}
                         appliedFixes={appliedFixes}
                         originalCode={currentCode}
                       />
+
+                      {/* Diff Viewer - mutat după findings pentru a nu bloca */}
+                      {currentFileId && hasUnsavedChanges && (
+                        <div style={{ marginTop: "24px", marginBottom: "16px" }}>
+                          <Group position="apart" mb="xs">
+                            <Text size="sm" weight={600} color="dimmed">
+                              Diff Viewer
+                            </Text>
+                            <Button
+                              size="xs"
+                              variant="light"
+                              color="blue"
+                              leftSection={<IconGitCompare size={14} />}
+                              onClick={() => setShowDiffViewer(!showDiffViewer)}
+                            >
+                              {showDiffViewer ? "Ascunde Diff" : "Arată Diff"}
+                            </Button>
+                          </Group>
+                          {showDiffViewer && (
+                            <DiffViewer fileId={currentFileId} />
+                          )}
+                        </div>
+                      )}
                     </>
                   ) : searchQuery && reviewResult.findings && reviewResult.findings.length > 0 ? (
                     <div className="no-findings">

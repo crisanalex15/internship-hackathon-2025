@@ -1,0 +1,79 @@
+.custom-rules-modal {
+  font-family: var(--font-family);
+}
+
+/* Asigură că modal-ul nu se suprapune peste rezultate importante */
+.custom-rules-modal .mantine-Modal-root {
+  z-index: 200 !important;
+}
+
+.custom-rules-modal .mantine-Modal-overlay {
+  z-index: 199 !important;
+  background-color: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+}
+
+.custom-rules-modal .mantine-Modal-inner {
+  z-index: 200 !important;
+}
+
+/* Asigură că modal-ul este centrat corect */
+.custom-rules-modal .mantine-Modal-body {
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+/* Stil pentru modal când este deschis */
+.custom-rules-modal[data-opened="true"] {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.custom-rules-modal .mantine-Modal-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 1.5rem;
+}
+
+.custom-rules-modal .mantine-Modal-title {
+  color: white;
+  width: 100%;
+}
+
+.custom-rules-modal .mantine-Modal-close {
+  color: white;
+}
+
+.custom-rules-modal .mantine-Modal-close:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.custom-rules-modal .mantine-Tabs-tab {
+  transition: all 0.2s ease;
+}
+
+.custom-rules-modal .mantine-Tabs-tab[data-active] {
+  font-weight: 600;
+  color: var(--accent-color);
+}
+
+.custom-rules-modal .mantine-Textarea-input {
+  border-radius: 8px;
+  border: 2px solid #e9ecef;
+  transition: all 0.2s ease;
+}
+
+.custom-rules-modal .mantine-Textarea-input:focus {
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.custom-rules-modal .mantine-Code-root {
+  border-radius: 8px;
+  padding: 1rem;
+  background-color: #f8f9fa;
+}
+

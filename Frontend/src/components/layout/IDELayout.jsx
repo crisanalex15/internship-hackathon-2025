@@ -15,12 +15,14 @@ import {
 import { useAuth } from "../../context/AuthContext";
 import ProjectSearchBar from "../projects/ProjectSearchBar";
 import ProjectReviewPanel from "../projects/ProjectReviewPanel";
+import CustomRulesModal from "../review/CustomRulesModal";
 import "./IDELayout.css";
 
 const IDELayout = ({ children, activeView, onViewChange }) => {
   const { user, logout } = useAuth();
   const [darkMode, setDarkMode] = useState(true);
   const [selectedProject, setSelectedProject] = useState(null);
+  const [customRulesOpened, setCustomRulesOpened] = useState(false);
 
   // Set initial theme
   useEffect(() => {
@@ -74,6 +76,12 @@ const IDELayout = ({ children, activeView, onViewChange }) => {
 
           {/* Bottom Actions */}
           <div className="sidebar-bottom">
+            <Tooltip label="Reguli AI Personalizate" position="right">
+              <div className="sidebar-item" onClick={() => setCustomRulesOpened(true)}>
+                <IconSettings size={22} />
+              </div>
+            </Tooltip>
+
             <Tooltip label={darkMode ? "Light Mode" : "Dark Mode"} position="right">
               <div className="sidebar-item" onClick={toggleTheme}>
                 {darkMode ? <IconSun size={22} /> : <IconMoon size={22} />}
@@ -95,7 +103,12 @@ const IDELayout = ({ children, activeView, onViewChange }) => {
                   </Text>
                 </Menu.Label>
                 <Menu.Item icon={<IconUser size={14} />}>Profil</Menu.Item>
-                <Menu.Item icon={<IconSettings size={14} />}>Setări</Menu.Item>
+                <Menu.Item 
+                  icon={<IconSparkles size={14} />}
+                  onClick={() => setCustomRulesOpened(true)}
+                >
+                  Reguli AI Personalizate
+                </Menu.Item>
                 <Menu.Divider />
                 <Menu.Item icon={<IconLogout size={14} />} color="red" onClick={logout}>
                   Deconectare
@@ -125,6 +138,12 @@ const IDELayout = ({ children, activeView, onViewChange }) => {
           )}
         </div>
       </div>
+
+      {/* Custom Rules Modal */}
+      <CustomRulesModal
+        opened={customRulesOpened}
+        onClose={() => setCustomRulesOpened(false)}
+      />
     </div>
   );
 };

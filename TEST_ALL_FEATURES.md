@@ -72,7 +72,8 @@ curl -X POST $API_URL/api/auth/register \
   }'
 ```
 
-**Rezultat așteptat**: 
+**Rezultat așteptat**:
+
 ```json
 {
   "success": true,
@@ -119,6 +120,7 @@ curl $API_URL/api/aireview/status
 ```
 
 **Rezultat așteptat**:
+
 ```json
 {
   "status": "healthy",
@@ -158,6 +160,7 @@ curl -X POST $API_URL/api/aireview \
 ```
 
 **Rezultat așteptat**:
+
 ```json
 {
   "success": true,
@@ -209,6 +212,7 @@ curl -X POST $API_URL/api/git/validate \
 ```
 
 **Rezultat așteptat**:
+
 ```json
 {
   "success": true,
@@ -226,6 +230,7 @@ curl -X POST $API_URL/api/git/info \
 ```
 
 **Rezultat așteptat**:
+
 ```json
 {
   "success": true,
@@ -254,6 +259,7 @@ curl -X POST $API_URL/api/git/diff \
 ```
 
 **Rezultat așteptat**:
+
 ```json
 {
   "success": true,
@@ -336,6 +342,7 @@ curl -X POST $API_URL/api/aireview/incremental \
 ```
 
 **Rezultat așteptat**:
+
 ```json
 {
   "success": true,
@@ -387,6 +394,7 @@ git add Backend/TestFile.cs
 ```
 
 **Rezultat așteptat**: Hook-ul afișează review-ul și:
+
 - ❌ **Blochează** (exit 1) dacă există probleme critice
 - ✅ **Permite** (exit 0) dacă nu există probleme critice
 
@@ -400,6 +408,7 @@ curl -X POST $API_URL/api/aireview/pre-commit \
 ```
 
 **Rezultat așteptat**:
+
 ```json
 {
   "success": true,
@@ -443,6 +452,7 @@ curl -X POST $API_URL/api/comment \
 ```
 
 **Rezultat așteptat**:
+
 ```json
 {
   "success": true,
@@ -492,6 +502,7 @@ curl $API_URL/api/comment/review/1 \
 ```
 
 **Rezultat așteptat**:
+
 ```json
 {
   "success": true,
@@ -583,6 +594,7 @@ curl -X POST $API_URL/api/aireview/apply-fix \
 ```
 
 **Rezultat așteptat**:
+
 ```json
 {
   "success": true,
@@ -653,6 +665,7 @@ curl -X POST $API_URL/api/aireview/estimate-effort \
 ```
 
 **Rezultat așteptat**:
+
 ```json
 {
   "success": true,
@@ -800,14 +813,14 @@ namespace Backend.Services
             var storedPassword = GetPasswordFromDB(username);
             return password == storedPassword; // No hashing!
         }
-        
+
         // SQL Injection vulnerability
         public string GetPasswordFromDB(string username)
         {
             var query = "SELECT password FROM Users WHERE username = '" + username + "'";
             return ExecuteQuery(query);
         }
-        
+
         private string ExecuteQuery(string query)
         {
             // Dummy implementation
@@ -848,22 +861,22 @@ namespace Backend.Services
     public class NewAuthService
     {
         private readonly DbContext _context;
-        
+
         public NewAuthService(DbContext context)
         {
             _context = context;
         }
-        
+
         // Fixed: Using hashed password comparison
         public bool ValidateUser(string username, string password)
         {
             var user = _context.Users.FirstOrDefault(u => u.Username == username);
             if (user == null) return false;
-            
+
             var hashedPassword = HashPassword(password);
             return hashedPassword == user.PasswordHash;
         }
-        
+
         // Fixed: Using parameterized query via EF Core
         private string HashPassword(string password)
         {
@@ -948,13 +961,14 @@ După rularea tuturor testelor, ar trebui să ai:
 ✅ Pre-commit hook funcțional și blocare pentru probleme critice  
 ✅ Comentarii threaded cu replies  
 ✅ Estimări de effort detaliate  
-✅ Proiecte create și gestionate  
+✅ Proiecte create și gestionate
 
 ---
 
 ## 🐛 Troubleshooting Teste
 
 ### Test eșuat: "Ollama not available"
+
 ```bash
 # Verifică Ollama
 ollama serve
@@ -963,6 +977,7 @@ ollama pull qwen2.5-coder:7b
 ```
 
 ### Test eșuat: "401 Unauthorized"
+
 ```bash
 # Re-generează token
 curl -X POST $API_URL/api/auth/login \
@@ -971,6 +986,7 @@ curl -X POST $API_URL/api/auth/login \
 ```
 
 ### Test eșuat: "Repository not found"
+
 ```bash
 # Verifică că ești într-un repository Git
 git status
@@ -991,4 +1007,3 @@ pwd
 ---
 
 **Review Assistant** - Test Suite Completă 🧪✅
-

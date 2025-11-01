@@ -24,6 +24,11 @@ namespace Backend.DTO.ReviewDTO
         /// Limbajul de programare (opțional, pentru detecție mai precisă)
         /// </summary>
         public string? Language { get; set; }
+
+        /// <summary>
+        /// Reguli personalizate pentru AI (vor fi concatenate cu regulile default)
+        /// </summary>
+        public string? CustomRules { get; set; }
     }
 }
 

@@ -13,6 +13,10 @@ const reviewApi = axios.create({
 // JWT Token Management
 const getToken = () => localStorage.getItem("accessToken");
 
+// Custom Rules Management
+const CUSTOM_RULES_KEY = 'ai_review_custom_rules';
+const getCustomRules = () => localStorage.getItem(CUSTOM_RULES_KEY) || '';
+
 // Request interceptor - adaugă JWT token
 reviewApi.interceptors.request.use((config) => {
   const token = getToken();
@@ -39,7 +43,15 @@ export const reviewService = {
    * Efectuează un code review
    * @param {Object} data - { code?, gitDiff?, fileName?, language? }
    */
-  performReview: (data) => reviewApi.post("/aireview", data),
+  performReview: (data) => {
+    // Adaugă regulile custom la request dacă există
+    const customRules = getCustomRules();
+    const requestData = {
+      ...data,
+      customRules: customRules.trim() ? customRules : null,
+    };
+    return reviewApi.post("/aireview", requestData);
+  },
 
   /**
    * Aplică un fix/patch la un fișier

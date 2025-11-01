@@ -1,0 +1,48 @@
+package Lab1.Tema2;
+
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.PrintWriter;
+import java.util.Scanner;
+
+public class Tema2 {
+    
+    public static void main(String[] args) {
+        try {
+            // in.txt si out.txt
+            String nume_fisIn = "Lab1\\Tema2\\in.txt";
+            Scanner scanner = new Scanner(new File(nume_fisIn));
+            int sum = 0, average = 0, min = Integer.MAX_VALUE, max = Integer.MIN_VALUE, count = 0;
+            
+                while(scanner.hasNextInt()){
+                int number = scanner.nextInt();
+                count++;
+                sum += number;
+                if(number < min){
+                    min = number
+                }
+                if(number > max){
+                    max = number;
+                }
+            }
+            scanner.close();
+            
+            if(count > 0) {
+                average = sum / count;
+            }
+            
+            String nume_fisOut = "C:\\Users\\crisa\\Desktop\\Random Apps\\Faculta\\PJ\\Lab1\\Tema2\\out.txt";
+            PrintWriter writer = new PrintWriter(nume_fisOut);
+            writer.println("Suma numerelor este: " + sum);
+            writer.println("Media numerelor este: " + average);
+            writer.println("Minimul numerelor este: " + min);
+            writer.println("Maximul numerelor este: " + max);
+            writer.close();
+            
+            System.out.println("Cod:200");
+            
+        } catch (FileNotFoundException e) {
+            System.out.println("Eroare: Fisierul nu a fost gasit - " + e.getMessage());
+        }
+    }
+}

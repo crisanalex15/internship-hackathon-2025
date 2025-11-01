@@ -68,7 +68,30 @@ namespace Backend.Services.AI
                     : request.GitDiff;
 
                 var reviewType = !string.IsNullOrWhiteSpace(request.Code) ? "full" : "diff";
-                var prompt = _promptTemplate
+
+                // Construiește template-ul cu reguli custom dacă există
+                var baseTemplate = _promptTemplate;
+
+                // Adaugă reguli personalizate dacă există
+                if (!string.IsNullOrWhiteSpace(request.CustomRules))
+                {
+                    _logger.LogInformation("Adăugare reguli personalizate la prompt");
+                    var customRulesSection = $@"
+
+### 🎯 REGULI PERSONALIZATE DE LA UTILIZATOR:
+
+{request.CustomRules}
+
+---
+
+Acestea sunt cerințe SUPLIMENTARE față de regulile default. Respectă-le cu strictețe și raportează orice încălcare a lor.
+
+";
+                    // Inserează regulile custom înainte de secțiunea de cod
+                    baseTemplate = baseTemplate.Replace("Code to review:", customRulesSection + "Code to review:");
+                }
+
+                var prompt = baseTemplate
                     .Replace("<<<CODE_OR_DIFF>>>", codeToReview)
                     .Replace("<<<FILE_NAME>>>", request.FileName ?? "unknown");
 
