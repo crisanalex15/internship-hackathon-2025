@@ -25,6 +25,7 @@ import {
   IconSparkles,
 } from "@tabler/icons-react";
 import { reviewService } from "../../services/review.service";
+import FindingComments from "./FindingComments";
 import "./ModernFindingsList.css";
 
 const FindingItem = ({ finding, index }) => {
@@ -34,6 +35,7 @@ const FindingItem = ({ finding, index }) => {
   const [applyingFix, setApplyingFix] = useState(false);
   const [fixResult, setFixResult] = useState(null);
   const [copied, setCopied] = useState(false);
+  const [showComments, setShowComments] = useState(false);
 
   const getSeverityColor = (severity) => {
     switch (severity?.toLowerCase()) {
@@ -395,7 +397,24 @@ const FindingItem = ({ finding, index }) => {
                 {applyingFix ? "Se aplică..." : "Aplică Fix"}
               </Button>
             )}
+
+            <Button
+              variant="light"
+              color="violet"
+              size="xs"
+              leftSection={<IconExternalLink size={14} />}
+              onClick={() => setShowComments(!showComments)}
+              className="action-button"
+            >
+              {showComments ? "Ascunde discuția" : "Discută"}
+            </Button>
           </Group>
+
+          {showComments && (
+            <div className="comments-section">
+              <FindingComments findingId={finding.lineStart} />
+            </div>
+          )}
         </div>
       </Collapse>
     </div>

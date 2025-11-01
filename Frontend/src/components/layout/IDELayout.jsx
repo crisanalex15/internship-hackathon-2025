@@ -10,6 +10,7 @@ import {
   IconSettings,
   IconBrandGithub,
   IconSparkles,
+  IconGitCommit,
 } from "@tabler/icons-react";
 import { useAuth } from "../../context/AuthContext";
 import "./IDELayout.css";
@@ -30,6 +31,7 @@ const IDELayout = ({ children, activeView, onViewChange }) => {
 
   const sidebarItems = [
     { icon: IconCode, label: "Code Review", value: "review", color: "#60A5FA" },
+    { icon: IconGitCommit, label: "Pre-Commit", value: "precommit", color: "#22c55e" },
     { icon: IconHistory, label: "History", value: "history", color: "#A78BFA" },
     { icon: IconBrandGithub, label: "Git Diff", value: "diff", color: "#34D399" },
   ];

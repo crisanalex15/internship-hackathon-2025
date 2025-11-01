@@ -30,6 +30,8 @@ import {
 } from "@tabler/icons-react";
 import { reviewService } from "../../services/review.service";
 import ModernFindingsList from "./ModernFindingsList";
+import FileUploadZone from "./FileUploadZone";
+import AutoFixPanel from "./AutoFixPanel";
 import "./ModernCodeReviewPanel.css";
 
 const ModernCodeReviewPanel = () => {
@@ -43,8 +45,20 @@ const ModernCodeReviewPanel = () => {
   const [error, setError] = useState(null);
   const [ollamaStatus, setOllamaStatus] = useState(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [uploadMode, setUploadMode] = useState(false);
+  const [showAutoFix, setShowAutoFix] = useState(false);
 
   const editorRef = useRef(null);
+
+  const handleFileSelected = (fileData) => {
+    setFileName(fileData.name);
+    if (reviewMode === "code") {
+      setCode(fileData.content);
+    } else {
+      setGitDiff(fileData.content);
+    }
+    setUploadMode(false);
+  };
 
   useEffect(() => {
     checkOllamaStatus();
@@ -205,6 +219,16 @@ const ModernCodeReviewPanel = () => {
                 className="filename-input"
                 styles={{ input: { width: "240px" } }}
               />
+              <Tooltip label={uploadMode ? "Editor manual" : "Upload fișier"}>
+                <ActionIcon
+                  variant={uploadMode ? "filled" : "subtle"}
+                  color="blue"
+                  onClick={() => setUploadMode(!uploadMode)}
+                  size="lg"
+                >
+                  {uploadMode ? <IconCode size={18} /> : <IconUpload size={18} />}
+                </ActionIcon>
+              </Tooltip>
             </Group>
 
             <Group spacing="xs">
@@ -232,25 +256,33 @@ const ModernCodeReviewPanel = () => {
           </div>
 
           <div className="editor-container" ref={editorRef}>
-            <div className="line-numbers">
-              {lineNumbers.map((num) => (
-                <div key={num} className="line-number">
-                  {num}
+            {uploadMode ? (
+              <div style={{ padding: "20px", width: "100%" }}>
+                <FileUploadZone onFilesSelected={handleFileSelected} />
+              </div>
+            ) : (
+              <>
+                <div className="line-numbers">
+                  {lineNumbers.map((num) => (
+                    <div key={num} className="line-number">
+                      {num}
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-            <textarea
-              className="code-editor"
-              placeholder={
-                reviewMode === "code"
-                  ? "// Scrie sau inserează codul aici...\n\nfunction example() {\n  // Your code\n}"
-                  : "# Inserează output-ul de la 'git diff' aici...\n\ndiff --git a/file.js b/file.js\nindex 123..456\n..."
-              }
-              value={currentCode}
-              onChange={(e) => setCurrentCode(e.target.value)}
-              onScroll={handleScroll}
-              spellCheck={false}
-            />
+                <textarea
+                  className="code-editor"
+                  placeholder={
+                    reviewMode === "code"
+                      ? "// Scrie sau inserează codul aici...\n\nfunction example() {\n  // Your code\n}"
+                      : "# Inserează output-ul de la 'git diff' aici...\n\ndiff --git a/file.js b/file.js\nindex 123..456\n..."
+                  }
+                  value={currentCode}
+                  onChange={(e) => setCurrentCode(e.target.value)}
+                  onScroll={handleScroll}
+                  spellCheck={false}
+                />
+              </>
+            )}
             {loading && (
               <div className="editor-overlay">
                 <div className="loading-indicator">
@@ -307,7 +339,32 @@ const ModernCodeReviewPanel = () => {
                   </div>
 
                   {reviewResult.findings && reviewResult.findings.length > 0 ? (
-                    <ModernFindingsList findings={reviewResult.findings} />
+                    <>
+                      <Group position="apart" mb="md">
+                        <Badge color="blue" size="lg" variant="light">
+                          {reviewResult.findings.filter((f) => f.patch).length} cu fix-uri automate
+                        </Badge>
+                        {reviewResult.findings.some((f) => f.patch) && (
+                          <Button
+                            size="xs"
+                            variant="light"
+                            color="violet"
+                            leftSection={<IconSparkles size={14} />}
+                            onClick={() => setShowAutoFix(!showAutoFix)}
+                          >
+                            {showAutoFix ? "Ascunde Auto-Fix" : "Arată Auto-Fix"}
+                          </Button>
+                        )}
+                      </Group>
+
+                      {showAutoFix && reviewResult.findings.some((f) => f.patch) && (
+                        <div style={{ marginBottom: "16px" }}>
+                          <AutoFixPanel findings={reviewResult.findings} />
+                        </div>
+                      )}
+
+                      <ModernFindingsList findings={reviewResult.findings} />
+                    </>
                   ) : (
                     <div className="no-findings">
                       <IconCheck size={48} color="var(--accent-color)" />
