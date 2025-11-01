@@ -219,6 +219,135 @@ namespace Backend.Controllers.API
                 });
             }
         }
+
+        /// <summary>
+        /// Obține git diff automat din repository
+        /// GET /api/aireview/git-diff
+        /// </summary>
+        [HttpGet("git-diff")]
+        public IActionResult GetGitDiff([FromQuery] bool staged = false)
+        {
+            try
+            {
+                _logger.LogInformation("Obținere git diff automat (staged: {Staged})", staged);
+
+                var workingDirectory = Directory.GetCurrentDirectory();
+                var gitCommand = staged ? "git diff --staged" : "git diff";
+
+                var processInfo = new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = "git",
+                    Arguments = staged ? "diff --staged" : "diff",
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    WorkingDirectory = workingDirectory
+                };
+
+                using var process = System.Diagnostics.Process.Start(processInfo);
+                if (process == null)
+                {
+                    return StatusCode(500, new { success = false, message = "Nu s-a putut porni procesul git" });
+                }
+
+                var output = process.StandardOutput.ReadToEnd();
+                var error = process.StandardError.ReadToEnd();
+                process.WaitForExit();
+
+                if (process.ExitCode != 0)
+                {
+                    _logger.LogWarning("Git diff a eșuat: {Error}", error);
+                    return StatusCode(500, new { success = false, message = $"Git diff a eșuat: {error}" });
+                }
+
+                if (string.IsNullOrWhiteSpace(output))
+                {
+                    return Ok(new { success = true, diff = "", message = "Nu există modificări" });
+                }
+
+                return Ok(new { success = true, diff = output });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Eroare la obținerea git diff");
+                return StatusCode(500, new { success = false, message = $"Eroare: {ex.Message}" });
+            }
+        }
+
+        /// <summary>
+        /// Face review automat pe git diff curent
+        /// POST /api/aireview/auto-review-diff
+        /// </summary>
+        [HttpPost("auto-review-diff")]
+        public async Task<IActionResult> AutoReviewGitDiff([FromQuery] bool staged = false)
+        {
+            try
+            {
+                var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (string.IsNullOrEmpty(userId))
+                {
+                    return Unauthorized(new { message = "User not authenticated" });
+                }
+
+                _logger.LogInformation("Auto review git diff cerut de utilizatorul {UserId} (staged: {Staged})", userId, staged);
+
+                // Obține git diff
+                var workingDirectory = Directory.GetCurrentDirectory();
+                var processInfo = new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = "git",
+                    Arguments = staged ? "diff --staged" : "diff",
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    WorkingDirectory = workingDirectory
+                };
+
+                using var process = System.Diagnostics.Process.Start(processInfo);
+                if (process == null)
+                {
+                    return StatusCode(500, new { success = false, message = "Nu s-a putut porni procesul git" });
+                }
+
+                var gitDiff = process.StandardOutput.ReadToEnd();
+                var error = process.StandardError.ReadToEnd();
+                process.WaitForExit();
+
+                if (process.ExitCode != 0)
+                {
+                    _logger.LogWarning("Git diff a eșuat: {Error}", error);
+                    return StatusCode(500, new { success = false, message = $"Git diff a eșuat: {error}" });
+                }
+
+                if (string.IsNullOrWhiteSpace(gitDiff))
+                {
+                    return Ok(new
+                    {
+                        success = true,
+                        findings = new List<object>(),
+                        effortEstimate = new { hours = 0, complexity = "low", description = "Nu există modificări de revizuit" },
+                        message = "Nu există modificări în repository"
+                    });
+                }
+
+                // Efectuează review pe diff
+                var request = new ReviewRequest
+                {
+                    GitDiff = gitDiff,
+                    FileName = "git-diff"
+                };
+
+                var result = await _reviewService.PerformReviewAsync(request, userId);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Eroare la auto review git diff");
+                return StatusCode(500, new { success = false, message = $"Eroare: {ex.Message}" });
+            }
+        }
     }
 }
 

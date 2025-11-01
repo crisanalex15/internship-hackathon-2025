@@ -192,16 +192,35 @@ const FindingItem = ({ finding, index }) => {
 
     setApplyingFix(true);
     try {
-      const response = await reviewService.applyFix({
-        patch: finding.patch,
-        filePath: finding.file,
+      // Copy patch to clipboard și afișează instrucțiuni
+      setFixResult({
+        success: true,
+        message: "✅ Patch copiat în clipboard! Aplică manual în fișierul tău.",
+        instructions: `
+📂 Fișier: ${finding.file}
+📍 Linie: ${finding.lineStart}
+
+Cum să aplici:
+1. Deschide fișierul în editor
+2. Navighează la linia specificată
+3. Aplică modificarea din Patch
+4. SAU: Salvează patch-ul și rulează: git apply patch.diff
+        `.trim(),
       });
-      setFixResult(response.data);
+
+      // Copy patch to clipboard
+      if (navigator.clipboard && finding.patch) {
+        try {
+          await navigator.clipboard.writeText(finding.patch);
+        } catch (e) {
+          console.log("Clipboard copy failed");
+        }
+      }
     } catch (error) {
-      console.error("Eroare la aplicarea fix-ului:", error);
+      console.error("Eroare:", error);
       setFixResult({
         success: false,
-        message: error.response?.data?.message || "Eroare la aplicarea fix-ului",
+        message: "❌ Nu s-a putut copia patch-ul. Copiază manual din secțiunea Patch.",
       });
     } finally {
       setApplyingFix(false);

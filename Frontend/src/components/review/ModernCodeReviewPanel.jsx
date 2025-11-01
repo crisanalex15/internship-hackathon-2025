@@ -29,6 +29,7 @@ import {
   IconMinimize,
 } from "@tabler/icons-react";
 import { reviewService } from "../../services/review.service";
+import codeFileService from "../../services/codefile.service";
 import ModernFindingsList from "./ModernFindingsList";
 import FileUploadZone from "./FileUploadZone";
 import AutoFixPanel from "./AutoFixPanel";
@@ -47,8 +48,95 @@ const ModernCodeReviewPanel = () => {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [uploadMode, setUploadMode] = useState(false);
   const [showAutoFix, setShowAutoFix] = useState(false);
+  const [appliedFixes, setAppliedFixes] = useState(new Set());
+  const [showFixAppliedAnimation, setShowFixAppliedAnimation] = useState(false);
+  const [currentFileId, setCurrentFileId] = useState(null);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   const editorRef = useRef(null);
+
+  // Function to apply fix using backend API
+  const applyFixToCode = async (finding) => {
+    if (!finding.patch) return false;
+
+    try {
+      // If no file ID, create temp file first
+      if (!currentFileId) {
+        const currentCode = reviewMode === "code" ? code : gitDiff;
+        const fileData = await codeFileService.createTempFile(
+          fileName || "temp-code.txt",
+          currentCode
+        );
+        setCurrentFileId(fileData.fileId);
+        
+        // Now apply patch
+        const result = await codeFileService.applyPatch(fileData.fileId, finding.patch);
+        
+        if (result.success) {
+          // Update editor with new content
+          if (reviewMode === "code") {
+            setCode(result.updatedContent);
+          } else {
+            setGitDiff(result.updatedContent);
+          }
+          
+          // Mark this fix as applied
+          setAppliedFixes(prev => new Set([...prev, finding.lineStart]));
+          setHasUnsavedChanges(true);
+          
+          // Show animation
+          setShowFixAppliedAnimation(true);
+          setTimeout(() => setShowFixAppliedAnimation(false), 2000);
+          
+          return true;
+        }
+      } else {
+        // Apply patch to existing file
+        const result = await codeFileService.applyPatch(currentFileId, finding.patch);
+        
+        if (result.success) {
+          // Update editor
+          if (reviewMode === "code") {
+            setCode(result.updatedContent);
+          } else {
+            setGitDiff(result.updatedContent);
+          }
+          
+          setAppliedFixes(prev => new Set([...prev, finding.lineStart]));
+          setHasUnsavedChanges(true);
+          
+          setShowFixAppliedAnimation(true);
+          setTimeout(() => setShowFixAppliedAnimation(false), 2000);
+          
+          return true;
+        }
+      }
+    } catch (error) {
+      console.error("Error applying fix:", error);
+    }
+
+    return false;
+  };
+
+  // Reset to original code
+  const handleResetToOriginal = async () => {
+    if (!currentFileId) return;
+    
+    try {
+      const result = await codeFileService.resetToOriginal(currentFileId);
+      if (result.success) {
+        if (reviewMode === "code") {
+          setCode(result.content);
+        } else {
+          setGitDiff(result.content);
+        }
+        setAppliedFixes(new Set());
+        setHasUnsavedChanges(false);
+      }
+    } catch (error) {
+      console.error("Error resetting:", error);
+    }
+  };
 
   const handleFileSelected = (fileData) => {
     setFileName(fileData.name);
@@ -218,6 +306,13 @@ const ModernCodeReviewPanel = () => {
                 variant="filled"
                 className="filename-input"
                 styles={{ input: { width: "240px" } }}
+                rightSection={
+                  hasUnsavedChanges && (
+                    <Badge size="xs" color="orange" variant="dot">
+                      Modified
+                    </Badge>
+                  )
+                }
               />
               <Tooltip label={uploadMode ? "Editor manual" : "Upload fișier"}>
                 <ActionIcon
@@ -232,6 +327,18 @@ const ModernCodeReviewPanel = () => {
             </Group>
 
             <Group spacing="xs">
+              {hasUnsavedChanges && currentFileId && (
+                <Tooltip label="Reset la codul original">
+                  <ActionIcon
+                    variant="subtle"
+                    color="orange"
+                    onClick={handleResetToOriginal}
+                    size="sm"
+                  >
+                    <IconRefresh size={16} />
+                  </ActionIcon>
+                </Tooltip>
+              )}
               {reviewResult && (
                 <ActionIcon
                   variant="subtle"
@@ -270,7 +377,7 @@ const ModernCodeReviewPanel = () => {
                   ))}
                 </div>
                 <textarea
-                  className="code-editor"
+                  className={`code-editor ${showFixAppliedAnimation ? 'fix-applied' : ''}`}
                   placeholder={
                     reviewMode === "code"
                       ? "// Scrie sau inserează codul aici...\n\nfunction example() {\n  // Your code\n}"
@@ -363,7 +470,11 @@ const ModernCodeReviewPanel = () => {
                         </div>
                       )}
 
-                      <ModernFindingsList findings={reviewResult.findings} />
+                      <ModernFindingsList 
+                        findings={reviewResult.findings} 
+                        onApplyFix={applyFixToCode}
+                        appliedFixes={appliedFixes}
+                      />
                     </>
                   ) : (
                     <div className="no-findings">

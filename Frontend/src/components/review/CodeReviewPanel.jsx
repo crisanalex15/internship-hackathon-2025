@@ -13,6 +13,8 @@ import {
   Text,
   Tabs,
   px,
+  Divider,
+  Switch,
 } from "@mantine/core";
 import {
   IconUpload,
@@ -21,6 +23,7 @@ import {
   IconRefresh,
   IconHistory,
   IconCode,
+  IconGitBranch,
 } from "@tabler/icons-react";
 import { reviewService } from "../../services/review.service";
 import FindingsList from "./FindingsList";
@@ -29,8 +32,8 @@ import ReviewHistory from "./ReviewHistory";
 const CodeReviewPanel = () => {
   const [code, setCode] = useState("");
   const [gitDiff, setGitDiff] = useState("");
-  const [fileName, setFileName] = useState("");
   const [reviewMode, setReviewMode] = useState("code"); // 'code' sau 'diff'
+  const [staged, setStaged] = useState(false); // Pentru git diff --staged
 
   const [loading, setLoading] = useState(false);
   const [reviewResult, setReviewResult] = useState(null);
@@ -61,9 +64,7 @@ const CodeReviewPanel = () => {
     setReviewResult(null);
 
     try {
-      const requestData = {
-        fileName: fileName || "unknown",
-      };
+      const requestData = {};
 
       if (reviewMode === "code") {
         if (!code.trim()) {
@@ -88,6 +89,25 @@ const CodeReviewPanel = () => {
       setError(
         err.response?.data?.errorMessage ||
           "A apărut o eroare la efectuarea review-ului"
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAutoReviewGitDiff = async () => {
+    setLoading(true);
+    setError(null);
+    setReviewResult(null);
+
+    try {
+      const response = await reviewService.autoReviewGitDiff(staged);
+      setReviewResult(response.data);
+    } catch (err) {
+      console.error("Eroare la auto review git diff:", err);
+      setError(
+        err.response?.data?.message ||
+          "A apărut o eroare la obținerea git diff automat"
       );
     } finally {
       setLoading(false);
@@ -168,13 +188,6 @@ const CodeReviewPanel = () => {
             <Paper shadow="sm" p="md" withBorder>
               <Stack spacing="md">
                 <Textarea
-                  label="Nume fișier (opțional)"
-                  placeholder="exemplu.js, MyClass.cs, main.py, etc."
-                  value={fileName}
-                  onChange={(e) => setFileName(e.target.value)}
-                />
-
-                <Textarea
                   label="Cod sursă"
                   placeholder="Introdu codul pentru review aici..."
                   minRows={15}
@@ -209,17 +222,58 @@ const CodeReviewPanel = () => {
           <Tabs.Panel value="diff" pt="md">
             <Paper shadow="sm" p="md" withBorder>
               <Stack spacing="md">
-                <Textarea
-                  label="Nume fișier"
-                  placeholder="exemplu.js"
-                  value={fileName}
-                  onChange={(e) => setFileName(e.target.value)}
+                {/* Auto Review Git Diff */}
+                <Paper p="lg" withBorder style={{ backgroundColor: "#f8f9fa" }}>
+                  <Stack spacing="md">
+                    <Group position="apart">
+                      <div>
+                        <Text weight={600} size="lg">
+                          Auto Review Git Diff
+                        </Text>
+                        <Text size="sm" color="dimmed">
+                          Rulează automat git diff și efectuează review
+                        </Text>
+                      </div>
+                      <Switch
+                        label="Staged changes"
+                        checked={staged}
+                        onChange={(event) =>
+                          setStaged(event.currentTarget.checked)
+                        }
+                        description={staged ? "git diff --staged" : "git diff"}
+                      />
+                    </Group>
+                    <Button
+                      size="lg"
+                      fullWidth
+                      leftSection={<IconGitBranch size={20} />}
+                      onClick={handleAutoReviewGitDiff}
+                      loading={loading}
+                      disabled={ollamaStatus?.status !== "healthy"}
+                      variant="gradient"
+                      gradient={{ from: "teal", to: "lime", deg: 105 }}
+                    >
+                      Auto Review Git Diff
+                    </Button>
+                  </Stack>
+                </Paper>
+
+                <Divider
+                  my="md"
+                  label="SAU"
+                  labelPosition="center"
+                  variant="dashed"
                 />
+
+                {/* Manual Git Diff */}
+                <Text size="sm" weight={500} color="dimmed">
+                  Introdu manual git diff:
+                </Text>
 
                 <Textarea
                   label="Git Diff"
                   placeholder="Introdu output-ul de la 'git diff' aici..."
-                  minRows={15}
+                  minRows={10}
                   value={gitDiff}
                   onChange={(e) => setGitDiff(e.target.value)}
                   styles={{
@@ -239,7 +293,7 @@ const CodeReviewPanel = () => {
                       !gitDiff.trim() || ollamaStatus?.status !== "healthy"
                     }
                   >
-                    Efectueaza Review
+                    Efectueaza Review Manual
                   </Button>
                 </Group>
               </Stack>

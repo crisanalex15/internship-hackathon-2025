@@ -69,6 +69,18 @@ export const reviewService = {
    * Verifică status-ul serviciului Ollama
    */
   checkStatus: () => reviewApi.get("/aireview/status"),
+
+  /**
+   * Obține git diff automat din repository
+   * @param {Boolean} staged - dacă true, folosește git diff --staged
+   */
+  getGitDiff: (staged = false) => reviewApi.get("/aireview/git-diff", { params: { staged } }),
+
+  /**
+   * Face review automat pe git diff curent
+   * @param {Boolean} staged - dacă true, folosește git diff --staged
+   */
+  autoReviewGitDiff: (staged = false) => reviewApi.post("/aireview/auto-review-diff", null, { params: { staged } }),
 };
 
 export default reviewService;

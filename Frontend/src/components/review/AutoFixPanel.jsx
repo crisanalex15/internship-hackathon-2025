@@ -19,6 +19,7 @@ import {
   IconPlayerPlay,
   IconX,
   IconDownload,
+  IconCopy,
 } from "@tabler/icons-react";
 import "./AutoFixPanel.css";
 
@@ -42,20 +43,36 @@ const AutoFixPanel = ({ findings = [], onFixesApplied }) => {
       selectedFindings.includes(f.lineStart)
     );
 
+    // Collect all patches
+    let allPatches = "";
+    
     for (let i = 0; i < findingsToFix.length; i++) {
       const finding = findingsToFix[i];
       
-      // Simulate applying fix (in real app, would call API)
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      await new Promise((resolve) => setTimeout(resolve, 300));
+
+      allPatches += `\n\n# Fix ${i + 1}: ${finding.message}\n`;
+      allPatches += `# Fișier: ${finding.file}:${finding.lineStart}\n`;
+      allPatches += finding.patch + "\n";
 
       const result = {
         finding: finding,
-        success: Math.random() > 0.1, // 90% success rate simulation
-        message: Math.random() > 0.1 ? "Fix aplicat cu succes" : "Eroare la aplicare",
+        success: true,
+        message: "Patch pregătit pentru aplicare manuală",
       };
 
       setFixResults((prev) => [...prev, result]);
       setFixProgress(((i + 1) / findingsToFix.length) * 100);
+    }
+
+    // Copy all patches to clipboard
+    if (navigator.clipboard && allPatches) {
+      try {
+        await navigator.clipboard.writeText(allPatches);
+        console.log("All patches copied to clipboard!");
+      } catch (e) {
+        console.log("Clipboard copy failed");
+      }
     }
 
     setFixing(false);
@@ -246,8 +263,14 @@ const AutoFixPanel = ({ findings = [], onFixesApplied }) => {
           </Paper>
         )}
 
+        <Group spacing="xs" mb="xs">
+          <Text size="xs" color="dimmed" style={{ flex: 1 }}>
+            💡 Patch-urile vor fi copiate în clipboard. Aplică-le manual în fișierele tale.
+          </Text>
+        </Group>
+
         <Button
-          leftSection={<IconPlayerPlay size={16} />}
+          leftSection={<IconCopy size={16} />}
           onClick={handleAutoFix}
           loading={fixing}
           disabled={selectedFindings.length === 0 || fixing}
@@ -256,8 +279,8 @@ const AutoFixPanel = ({ findings = [], onFixesApplied }) => {
           className="apply-fixes-button"
         >
           {fixing
-            ? "Se aplică fix-urile..."
-            : `Aplică ${selectedFindings.length} fix-uri`}
+            ? "Pregătesc patch-urile..."
+            : `Copiază ${selectedFindings.length} patch-uri`}
         </Button>
       </Stack>
     </div>

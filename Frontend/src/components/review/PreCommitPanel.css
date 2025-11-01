@@ -1,33 +1,43 @@
 .pre-commit-panel {
-  padding: 24px;
+  padding: 32px;
   height: 100%;
   overflow-y: auto;
 }
 
-.panel-header {
-  margin-bottom: 24px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid var(--border-color);
+.hero-header {
+  text-align: center;
+  padding: 40px 24px;
+  border-radius: 16px;
+  animation: fadeInDown 0.6s ease-out;
 }
 
-.header-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 56px;
-  height: 56px;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
-  color: white;
-  animation: pulse 2s ease-in-out infinite;
+.hero-icon {
+  animation: bounceIn 0.8s ease-out;
+  box-shadow: 0 8px 32px rgba(16, 185, 129, 0.3);
 }
 
-@keyframes pulse {
-  0%, 100% {
-    box-shadow: 0 0 20px rgba(34, 197, 94, 0.5);
+@keyframes bounceIn {
+  0% {
+    transform: scale(0);
+    opacity: 0;
   }
   50% {
-    box-shadow: 0 0 30px rgba(34, 197, 94, 0.8);
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
@@ -36,27 +46,112 @@
   margin: 0 auto;
 }
 
-.review-button {
-  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
-  border: none;
-  transition: all 0.2s ease;
+.auto-review-card {
+  background: linear-gradient(135deg, #ffffff 0%, #f0fdfa 100%);
+  border: 2px solid #14b8a6;
+  animation: slideInLeft 0.6s ease-out;
+  position: relative;
+  overflow: hidden;
 }
 
-.review-button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.4);
+.auto-review-card::before {
+  content: "";
+  position: absolute;
+  top: -50%;
+  right: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(
+    circle,
+    rgba(20, 184, 166, 0.1) 0%,
+    transparent 70%
+  );
+  animation: rotate 20s linear infinite;
+}
+
+@keyframes rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.auto-review-button {
+  transition: all 0.3s ease;
+}
+
+.auto-review-button:hover {
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: 0 8px 32px rgba(20, 184, 166, 0.5);
+}
+
+.auto-review-button:active {
+  transform: translateY(-2px) scale(0.98);
 }
 
 .commit-status {
-  background: var(--bg-secondary);
-  border-left: 4px solid var(--accent-color);
-  animation: slideIn 0.4s ease-out;
+  animation: scaleIn 0.5s ease-out;
+  transition: all 0.3s ease;
 }
 
-@keyframes slideIn {
+.commit-status:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.15);
+}
+
+@keyframes scaleIn {
   from {
     opacity: 0;
-    transform: translateY(-10px);
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.status-blocked {
+  animation: shake 0.5s ease-out, scaleIn 0.5s ease-out;
+}
+
+@keyframes shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-10px);
+  }
+  75% {
+    transform: translateX(10px);
+  }
+}
+
+.status-ok {
+  animation: bounceIn 0.6s ease-out;
+}
+
+.review-results {
+  animation: fadeInUp 0.6s ease-out;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
   }
   to {
     opacity: 1;
@@ -64,16 +159,70 @@
   }
 }
 
-.review-results {
-  animation: fadeIn 0.5s ease-out;
+/* Dark Mode Support */
+@media (prefers-color-scheme: dark) {
+  .hero-header {
+    background: linear-gradient(
+      135deg,
+      rgba(16, 185, 129, 0.2) 0%,
+      rgba(59, 130, 246, 0.2) 100%
+    );
+  }
+
+  .auto-review-card {
+    background: linear-gradient(135deg, #1f2937 0%, #064e3b 100%);
+    border-color: #14b8a6;
+  }
 }
 
-@keyframes fadeIn {
+/* Responsive */
+@media (max-width: 768px) {
+  .pre-commit-panel {
+    padding: 16px;
+  }
+
+  .hero-header {
+    padding: 24px 16px;
+  }
+
+  .hero-icon {
+    width: 60px;
+    height: 60px;
+  }
+
+  .hero-header h1 {
+    font-size: 28px;
+  }
+}
+
+/* Animations for badges */
+.mantine-Badge-root {
+  animation: popIn 0.4s ease-out;
+}
+
+@keyframes popIn {
+  0% {
+    transform: scale(0);
+  }
+  80% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Progress bar animation */
+.mantine-Progress-section {
+  animation: expandWidth 1s ease-out;
+}
+
+@keyframes expandWidth {
   from {
-    opacity: 0;
+    transform: scaleX(0);
+    transform-origin: left;
   }
   to {
-    opacity: 1;
+    transform: scaleX(1);
   }
 }
-

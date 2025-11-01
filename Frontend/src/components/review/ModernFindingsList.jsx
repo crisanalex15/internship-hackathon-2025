@@ -26,13 +26,14 @@ import {
 } from "@tabler/icons-react";
 import { reviewService } from "../../services/review.service";
 import FindingComments from "./FindingComments";
+import ApplyFixModal from "./ApplyFixModal";
 import "./ModernFindingsList.css";
 
-const FindingItem = ({ finding, index }) => {
+const FindingItem = ({ finding, index, onApplyFix, isFixApplied }) => {
   const [expanded, setExpanded] = useState(false);
   const [explaining, setExplaining] = useState(false);
   const [explanation, setExplanation] = useState(null);
-  const [applyingFix, setApplyingFix] = useState(false);
+  const [fixModalOpened, setFixModalOpened] = useState(false);
   const [fixResult, setFixResult] = useState(null);
   const [copied, setCopied] = useState(false);
   const [showComments, setShowComments] = useState(false);
@@ -200,28 +201,31 @@ const FindingItem = ({ finding, index }) => {
     return elements;
   };
 
-  const handleApplyFix = async () => {
-    if (!finding.patch) {
-      setFixResult({ success: false, message: "Nu există patch disponibil" });
-      return;
-    }
+  const handleApplyFixClick = () => {
+    // Open modal instead of applying directly
+    setFixModalOpened(true);
+  };
 
-    setApplyingFix(true);
-    try {
-      const response = await reviewService.applyFix({
-        patch: finding.patch,
-        filePath: finding.file,
-      });
-      setFixResult(response.data);
-    } catch (error) {
-      console.error("Eroare la aplicarea fix-ului:", error);
-      setFixResult({
-        success: false,
-        message: error.response?.data?.message || "Eroare la aplicarea fix-ului",
-      });
-    } finally {
-      setApplyingFix(false);
+  const handleAcceptFix = async (finding) => {
+    if (onApplyFix) {
+      const success = onApplyFix(finding);
+      if (success) {
+        setFixResult({
+          success: true,
+          message: "✅ Fix aplicat cu succes în editor!",
+        });
+      } else {
+        setFixResult({
+          success: false,
+          message: "❌ Nu s-a putut aplica fix-ul automat. Codul poate fi deja modificat.",
+        });
+      }
     }
+  };
+
+  const handleRejectFix = () => {
+    // User rejected the fix - do nothing
+    console.log("Fix rejected by user");
   };
 
   const handleCopy = () => {
@@ -363,10 +367,18 @@ const FindingItem = ({ finding, index }) => {
                   <IconAlertCircle size={16} />
                 )
               }
-              color={fixResult.success ? "green" : "red"}
+              color={fixResult.success ? "blue" : "red"}
               className="fix-result-alert"
+              title={fixResult.success ? "Patch pregătit!" : "Eroare"}
             >
-              {fixResult.message}
+              <Text size="sm" mb={fixResult.instructions ? "xs" : 0}>
+                {fixResult.message}
+              </Text>
+              {fixResult.instructions && (
+                <Text size="xs" style={{ whiteSpace: "pre-line", marginTop: "8px", fontFamily: "monospace" }}>
+                  {fixResult.instructions}
+                </Text>
+              )}
             </Alert>
           )}
 
@@ -385,16 +397,14 @@ const FindingItem = ({ finding, index }) => {
             {finding.patch && (
               <Button
                 variant="light"
-                color="green"
+                color={isFixApplied ? "teal" : "green"}
                 size="xs"
-                leftSection={
-                  applyingFix ? <Loader size={12} /> : <IconCheck size={14} />
-                }
-                onClick={handleApplyFix}
-                disabled={applyingFix}
+                leftSection={isFixApplied ? <IconCheck size={14} /> : <IconSparkles size={14} />}
+                onClick={handleApplyFixClick}
+                disabled={isFixApplied}
                 className="action-button"
               >
-                {applyingFix ? "Se aplică..." : "Aplică Fix"}
+                {isFixApplied ? "Fix Aplicat ✓" : "Aplică Fix"}
               </Button>
             )}
 
@@ -417,11 +427,20 @@ const FindingItem = ({ finding, index }) => {
           )}
         </div>
       </Collapse>
+
+      {/* Apply Fix Modal */}
+      <ApplyFixModal
+        opened={fixModalOpened}
+        onClose={() => setFixModalOpened(false)}
+        finding={finding}
+        onAccept={handleAcceptFix}
+        onReject={handleRejectFix}
+      />
     </div>
   );
 };
 
-const ModernFindingsList = ({ findings }) => {
+const ModernFindingsList = ({ findings, onApplyFix, appliedFixes = new Set() }) => {
   if (!findings || findings.length === 0) {
     return null;
   }
@@ -474,7 +493,13 @@ const ModernFindingsList = ({ findings }) => {
 
       <Stack spacing={12} className="findings-stack">
         {sortedFindings.map((finding, index) => (
-          <FindingItem key={index} finding={finding} index={index} />
+          <FindingItem 
+            key={index} 
+            finding={finding} 
+            index={index}
+            onApplyFix={onApplyFix}
+            isFixApplied={appliedFixes.has(finding.lineStart)}
+          />
         ))}
       </Stack>
     </div>
