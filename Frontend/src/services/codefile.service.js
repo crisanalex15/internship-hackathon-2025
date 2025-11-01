@@ -117,6 +117,33 @@ class CodeFileService {
   }
 
   /**
+   * Descarcă fișierul curent (cu fix-urile aplicate)
+   */
+  async downloadFile(fileId, fileName) {
+    try {
+      const response = await api.get(`/CodeFile/${fileId}/download`, {
+        params: { fileName },
+        responseType: 'blob',
+      });
+      
+      // Creează un link temporar pentru descărcare
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', fileName || `fixed_${fileId}.txt`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      
+      return { success: true, message: 'Fișier descărcat cu succes' };
+    } catch (error) {
+      console.error('Error downloading file:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Șterge fișierele temporare
    */
   async deleteTempFiles(fileId) {

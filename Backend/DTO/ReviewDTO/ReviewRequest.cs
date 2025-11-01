@@ -19,6 +19,11 @@ namespace Backend.DTO.ReviewDTO
         /// Numele fișierului sau proiectului
         /// </summary>
         public string? FileName { get; set; }
+
+        /// <summary>
+        /// Limbajul de programare (opțional, pentru detecție mai precisă)
+        /// </summary>
+        public string? Language { get; set; }
     }
 }
 

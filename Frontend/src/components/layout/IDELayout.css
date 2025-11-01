@@ -228,3 +228,106 @@
   }
 }
 
+/* Global Mantine Component Styling to respect custom dark mode */
+[data-theme="dark"] .mantine-Paper-root {
+  background-color: var(--bg-secondary);
+  border-color: var(--border-color);
+}
+
+[data-theme="dark"] .mantine-Text-root {
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .mantine-Text-root[data-dimmed="true"],
+[data-theme="dark"] .mantine-Text-root.mantine-Text-root--dimmed {
+  color: var(--text-secondary);
+}
+
+[data-theme="dark"] .mantine-Button-root {
+  background-color: var(--bg-elevated);
+  border-color: var(--border-color);
+}
+
+[data-theme="dark"] .mantine-Button-root:hover {
+  background-color: var(--bg-tertiary);
+}
+
+[data-theme="dark"] .mantine-TextInput-input,
+[data-theme="dark"] .mantine-PasswordInput-input {
+  background-color: var(--bg-secondary);
+  border-color: var(--border-color);
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .mantine-TextInput-input::placeholder,
+[data-theme="dark"] .mantine-PasswordInput-input::placeholder {
+  color: var(--text-secondary);
+}
+
+[data-theme="dark"] .mantine-Badge-root {
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .mantine-ActionIcon-root {
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .mantine-ActionIcon-root:hover {
+  background-color: var(--bg-tertiary);
+}
+
+[data-theme="dark"] .mantine-Timeline-root {
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .mantine-Alert-root {
+  background-color: var(--bg-secondary);
+  border-color: var(--border-color);
+}
+
+[data-theme="dark"] .mantine-Modal-content,
+[data-theme="dark"] .mantine-Modal-header {
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .mantine-Modal-title {
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .mantine-Menu-dropdown {
+  background-color: var(--bg-secondary);
+  border-color: var(--border-color);
+}
+
+[data-theme="dark"] .mantine-Menu-item {
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .mantine-Menu-item:hover {
+  background-color: var(--bg-tertiary);
+}
+
+[data-theme="dark"] .mantine-ScrollArea-viewport {
+  background-color: var(--bg-secondary);
+}
+
+[data-theme="dark"] .mantine-Stack-root,
+[data-theme="dark"] .mantine-Group-root {
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .mantine-Tabs-tab {
+  color: var(--text-secondary);
+}
+
+[data-theme="dark"] .mantine-Tabs-tab[data-active="true"] {
+  color: var(--accent-color);
+}
+
+[data-theme="dark"] .mantine-Code-root {
+  background-color: var(--bg-elevated);
+  color: var(--text-primary);
+}
+

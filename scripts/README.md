@@ -1,94 +1,229 @@
-# AI Code Review - Git Hooks
+# Review Assistant - Git Hooks & Pre-Commit Evaluation
 
-Acest director conține scripturi pentru integrarea AI Code Review în workflow-ul git.
+Acest director conține scripturi pentru integrarea Review Assistant în workflow-ul git, inclusiv **pre-commit evaluation** automată.
 
 ## 📋 Fișiere
 
-- **pre-commit** - Hook bash pentru Linux/Mac/Git Bash pe Windows
-- **pre-commit.ps1** - Hook PowerShell pentru Windows
-- **install-hook.ps1** - Script de instalare automată
+### Hook-uri Pre-Commit
+- **pre-commit-hook.sh** - Hook bash pentru Linux/Mac/Git Bash pe Windows
+- **pre-commit-hook.ps1** - Hook PowerShell pentru Windows (mai bogat în features)
 
-## 🚀 Instalare
+### Scripturi de Instalare
+- **install-pre-commit-hook.sh** - Script de instalare automată pentru bash
+- **install-pre-commit-hook.ps1** - Script de instalare automată pentru PowerShell
 
-### Windows (PowerShell)
+### Hook-uri Legacy (pentru compatibilitate)
+- **pre-commit** - Hook bash original
+- **pre-commit.ps1** - Hook PowerShell original
+- **install-hook.ps1** - Script de instalare vechi
+
+## 🚀 Instalare Rapidă
+
+### Windows (PowerShell) - Recomandat
 
 ```powershell
 # Din root-ul repository-ului
-.\scripts\install-hook.ps1
+.\scripts\install-pre-commit-hook.ps1
 ```
 
-### Linux/Mac
+### Linux/Mac/Git Bash
 
 ```bash
 # Din root-ul repository-ului
-chmod +x scripts/pre-commit
-cp scripts/pre-commit .git/hooks/pre-commit
+chmod +x scripts/install-pre-commit-hook.sh
+./scripts/install-pre-commit-hook.sh
+```
+
+### Instalare Manuală
+
+```bash
+# Bash/Linux/Mac
+cp scripts/pre-commit-hook.sh .git/hooks/pre-commit
 chmod +x .git/hooks/pre-commit
+
+# PowerShell/Windows
+Copy-Item scripts\pre-commit-hook.ps1 .git\hooks\pre-commit
 ```
 
 ## ⚙️ Configurare
 
-Înainte de a folosi hook-ul, trebuie să configurezi:
+### 1. Pornește Backend-ul
 
-1. **Backend-ul să ruleze**: Asigură-te că API-ul ASP.NET rulează (implicit pe `http://localhost:5000`)
+```bash
+cd Backend
+dotnet run
+```
 
-2. **JWT Token**: Obține un token JWT prin autentificare și setează variabila de mediu:
+Backend-ul va rula pe `http://localhost:5000` (implicit).
 
-   **Windows (PowerShell)**:
-   ```powershell
-   $env:AI_REVIEW_JWT_TOKEN = "your-jwt-token-here"
-   ```
+### 2. Autentificare (o singură dată)
 
-   **Linux/Mac (Bash)**:
-   ```bash
-   export AI_REVIEW_JWT_TOKEN="your-jwt-token-here"
-   ```
+Hook-ul necesită un JWT token pentru autentificare. Obține token-ul astfel:
 
-3. **(Opțional) URL custom**: Dacă backend-ul rulează pe alt port:
+**Folosind curl + jq**:
+```bash
+curl -X POST http://localhost:5000/api/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"user@example.com","password":"password"}' \
+  | jq -r '.token' > ~/.review-assistant-token
+```
 
-   ```powershell
-   $env:AI_REVIEW_API_URL = "http://localhost:XXXX/api/aireview"
-   ```
+**Folosind PowerShell**:
+```powershell
+$response = Invoke-RestMethod -Uri "http://localhost:5000/api/auth/login" `
+  -Method POST `
+  -ContentType "application/json" `
+  -Body '{"email":"user@example.com","password":"password"}'
 
-## 🔍 Funcționare
+$response.token | Out-File -FilePath "$HOME\.review-assistant-token" -NoNewline
+```
 
-Hook-ul se activează automat la fiecare `git commit` și:
+**Salvare manuală**:
+```bash
+echo "your-jwt-token-here" > ~/.review-assistant-token
+```
 
-1. Colectează toate modificările staged (`git diff --cached`)
-2. Trimite diff-ul către API-ul de AI Review
-3. Analizează rezultatele:
-   - ❌ **Blochează commit-ul** dacă sunt găsite probleme **critical** sau **high**
-   - ⚠️ **Avertizează** dacă sunt probleme **medium** sau **low** (dar permite commit-ul)
-   - ✅ **Permite commit-ul** dacă nu sunt probleme majore
+Token-ul se salvează în `~/.review-assistant-token` și este citit automat de hook.
+
+### 3. (Opțional) Configurare URL Custom
+
+Dacă backend-ul rulează pe alt port, modifică variabila `$API_URL` / `API_URL` din hook-ul instalat.
+
+## 🔍 Funcționare (Pre-Commit Evaluation)
+
+Hook-ul implementează **pre-commit evaluation** conform planului Review Assistant:
+
+### Flux de Execuție
+
+1. **Detectare Modificări Staged**: Hook-ul verifică `git diff --cached`
+2. **Trimitere către Backend**: Modificările sunt trimise la `/api/aireview/pre-commit`
+3. **Analiză AI**: Backend-ul folosește GitService + LibGit2Sharp pentru a analiza doar modificările
+4. **Evaluare Severitate**: Sistemul calculează numărul de probleme critice/majore
+5. **Decizie**:
+   - ❌ **BLOCHEAZĂ commit-ul** dacă există probleme **CRITICE** (return exit 1)
+   - ⚠️ **AVERTIZEAZĂ** pentru probleme **HIGH/MEDIUM** (dar permite commit)
+   - ✅ **PERMITE commit-ul** dacă nu sunt probleme sau doar LOW severity
+
+### Avantaje Pre-Commit Evaluation
+
+- ✅ **Review incremental** - Analizează doar modificările, nu tot codul
+- ✅ **Feedback instant** - Dezvoltatorul află imediat dacă există probleme
+- ✅ **Previne probleme critice** - Commit-urile cu bug-uri grave sunt blocate
+- ✅ **Non-intruziv** - Problemele minore nu blochează workflow-ul
+- ✅ **Bypass disponibil** - `--no-verify` pentru cazuri urgente
 
 ## 🛠️ Utilizare
 
-### Commit normal (cu review)
+### Commit Normal (cu Review Automat)
 ```bash
 git add .
-git commit -m "your message"
-# Hook-ul va rula automat
+git commit -m "feat: added new feature"
+# Hook-ul rulează automat pre-commit evaluation
 ```
 
-### Bypass hook (în cazuri urgente)
+### Bypass Hook (Cazuri Urgente)
 ```bash
-git commit --no-verify -m "urgent fix"
+# Skip review-ul complet
+git commit --no-verify -m "urgent hotfix"
 ```
 
-## 📊 Exemplu de output
-
+### Testare Hook Manual
+```bash
+# Rulează hook-ul fără commit
+.git/hooks/pre-commit
 ```
-🔍 Rulare AI Code Review...
-✅ AI Review finalizat: 3 probleme găsite
 
-⚠️  Atenție: Găsite probleme non-critice:
-  - [MEDIUM] Backend/Services/MyService.cs:45-47: Unused variable 'temp'
-  - [LOW] Backend/Controllers/MyController.cs:23-25: Missing XML documentation
-  - [LOW] Frontend/src/App.tsx:102-103: Console.log statement in production
+## 📊 Exemplu Output (PowerShell)
 
-Commit-ul va continua, dar te rugăm să revizuiești aceste probleme.
+### ✅ Commit Permis (Fără Probleme)
 
-✅ Pre-commit AI Review complet!
+```powershell
+🔍 Review Assistant Pre-Commit Hook
+═══════════════════════════════════════════════
+
+📝 Fișiere staged pentru commit:
+   - Backend/Services/MyService.cs
+   - Frontend/src/components/NewComponent.jsx
+
+🤖 Rulează AI Code Review...
+
+═══════════════════════════════════════════════
+✅ Review finalizat!
+═══════════════════════════════════════════════
+
+📊 Rezultate:
+   • Total probleme: 0
+   • Probleme critice: 0
+   • Probleme majore: 0
+
+✨ Nicio problemă detectată! Cod excelent!
+
+✅ Commit-ul poate continua...
+```
+
+### ⚠️ Commit Permis (Cu Avertismente)
+
+```powershell
+🔍 Review Assistant Pre-Commit Hook
+═══════════════════════════════════════════════
+
+📝 Fișiere staged pentru commit:
+   - Backend/Controllers/UserController.cs
+
+🤖 Rulează AI Code Review...
+
+═══════════════════════════════════════════════
+✅ Review finalizat!
+═══════════════════════════════════════════════
+
+📊 Rezultate:
+   • Total probleme: 3
+   • Probleme critice: 0
+   • Probleme majore: 1
+
+⚠️  Au fost detectate 3 probleme (non-critice).
+   Commit-ul va continua, dar te rugăm să revizuiești problemele.
+
+   • [HIGH] UserController.cs:45 - Missing null check before accessing user object
+   • [MEDIUM] UserController.cs:67 - Consider using async/await for database operations
+   • [LOW] UserController.cs:12 - Missing XML documentation comment
+
+   ... și încă 0 probleme
+
+✅ Commit-ul poate continua...
+```
+
+### ❌ Commit Blocat (Probleme Critice)
+
+```powershell
+🔍 Review Assistant Pre-Commit Hook
+═══════════════════════════════════════════════
+
+📝 Fișiere staged pentru commit:
+   - Backend/Services/AuthService.cs
+
+🤖 Rulează AI Code Review...
+
+═══════════════════════════════════════════════
+✅ Review finalizat!
+═══════════════════════════════════════════════
+
+📊 Rezultate:
+   • Total probleme: 2
+   • Probleme critice: 2
+   • Probleme majore: 0
+
+❌ COMMIT BLOCAT!
+
+   Au fost detectate 2 probleme CRITICE!
+   Commit-ul nu poate fi efectuat până când problemele sunt rezolvate.
+
+   Probleme critice:
+   • [AuthService.cs:34] SQL injection vulnerability in query construction
+   • [AuthService.cs:52] Password stored in plain text without hashing
+
+   Pentru a ignora review-ul și forța commit-ul, folosește:
+   git commit --no-verify
 ```
 
 ## 🔧 Troubleshooting

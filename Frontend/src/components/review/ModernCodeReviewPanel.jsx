@@ -29,6 +29,7 @@ import {
   IconMaximize,
   IconMinimize,
   IconSearch,
+  IconDownload,
 } from "@tabler/icons-react";
 import { reviewService } from "../../services/review.service";
 import codeFileService from "../../services/codefile.service";
@@ -68,6 +69,22 @@ const ModernCodeReviewPanel = ({ initialCode = "", initialFileName = "", project
   const [searchQuery, setSearchQuery] = useState("");
 
   const editorRef = useRef(null);
+
+  // Function to download fixed file
+  const handleDownloadFile = async () => {
+    if (!currentFileId) {
+      setError("Nu există fișier pentru descărcare. Uploadează un fișier mai întâi.");
+      return;
+    }
+
+    try {
+      const downloadFileName = fileName || `fixed_code_${new Date().getTime()}.txt`;
+      await codeFileService.downloadFile(currentFileId, downloadFileName);
+    } catch (error) {
+      console.error("Error downloading file:", error);
+      setError("Eroare la descărcarea fișierului: " + (error.message || "Eroare necunoscută"));
+    }
+  };
 
   // Function to apply fix using backend API
   const applyFixToCode = async (finding) => {
@@ -549,6 +566,18 @@ const ModernCodeReviewPanel = ({ initialCode = "", initialFileName = "", project
             </Group>
 
             <Group spacing="xs">
+              {currentFileId && hasUnsavedChanges && (
+                <Tooltip label="Descarcă fișierul cu fix-uri">
+                  <ActionIcon
+                    variant="subtle"
+                    color="green"
+                    onClick={handleDownloadFile}
+                    size="sm"
+                  >
+                    <IconDownload size={16} />
+                  </ActionIcon>
+                </Tooltip>
+              )}
               {hasUnsavedChanges && currentFileId && (
                 <Tooltip label="Reset la codul original">
                   <ActionIcon

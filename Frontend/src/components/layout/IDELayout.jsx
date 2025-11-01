@@ -8,7 +8,6 @@ import {
   IconMoon,
   IconSun,
   IconSettings,
-  IconBrandGithub,
   IconSparkles,
   IconGitCommit,
   IconFolder,
@@ -37,7 +36,6 @@ const IDELayout = ({ children, activeView, onViewChange }) => {
     { icon: IconCode, label: "Code Review", value: "review", color: "#60A5FA" },
     { icon: IconGitCommit, label: "Pre-Commit", value: "precommit", color: "#22c55e" },
     { icon: IconHistory, label: "History", value: "history", color: "#A78BFA" },
-    { icon: IconBrandGithub, label: "Git Diff", value: "diff", color: "#34D399" },
     { icon: IconFolder, label: "My Projects", value: "projects", color: "#F59E0B" },
   ];
 

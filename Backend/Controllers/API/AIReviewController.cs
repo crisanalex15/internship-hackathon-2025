@@ -18,15 +18,18 @@ namespace Backend.Controllers.API
     {
         private readonly AIReviewService _reviewService;
         private readonly LLMClient _llmClient;
+        private readonly EffortEstimationService _effortEstimationService;
         private readonly ILogger<AIReviewController> _logger;
 
         public AIReviewController(
             AIReviewService reviewService,
             LLMClient llmClient,
+            EffortEstimationService effortEstimationService,
             ILogger<AIReviewController> logger)
         {
             _reviewService = reviewService;
             _llmClient = llmClient;
+            _effortEstimationService = effortEstimationService;
             _logger = logger;
         }
 
@@ -348,6 +351,150 @@ namespace Backend.Controllers.API
                 return StatusCode(500, new { success = false, message = $"Eroare: {ex.Message}" });
             }
         }
+
+        /// <summary>
+        /// Efectuează review incremental pe baza unui Git repository
+        /// POST /api/aireview/incremental
+        /// </summary>
+        [HttpPost("incremental")]
+        public async Task<IActionResult> IncrementalReview([FromBody] IncrementalReviewRequest request)
+        {
+            try
+            {
+                var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (string.IsNullOrEmpty(userId))
+                {
+                    return Unauthorized(new { message = "User not authenticated" });
+                }
+
+                _logger.LogInformation("Review incremental cerut pentru repository {Repo}", request.RepositoryPath);
+
+                var result = await _reviewService.PerformIncrementalReviewAsync(
+                    request.RepositoryPath,
+                    userId,
+                    request.BaseRef,
+                    request.TargetRef
+                );
+
+                if (!result.Success)
+                {
+                    return BadRequest(result);
+                }
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Eroare la review-ul incremental");
+                return StatusCode(500, new
+                {
+                    success = false,
+                    errorMessage = "A apărut o eroare la review-ul incremental"
+                });
+            }
+        }
+
+        /// <summary>
+        /// Efectuează pre-commit review pentru modificările staged
+        /// POST /api/aireview/pre-commit
+        /// </summary>
+        [HttpPost("pre-commit")]
+        public async Task<IActionResult> PreCommitReview([FromBody] PreCommitRequest request)
+        {
+            try
+            {
+                var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (string.IsNullOrEmpty(userId))
+                {
+                    return Unauthorized(new { message = "User not authenticated" });
+                }
+
+                _logger.LogInformation("Pre-commit review cerut pentru repository {Repo}", request.RepositoryPath);
+
+                var result = await _reviewService.PerformPreCommitReviewAsync(
+                    request.RepositoryPath,
+                    userId
+                );
+
+                if (!result.Success)
+                {
+                    return BadRequest(result);
+                }
+
+                // Returnează status code 400 dacă commit-ul ar trebui blocat
+                if (result.ShouldBlockCommit)
+                {
+                    return BadRequest(result);
+                }
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Eroare la pre-commit review");
+                return StatusCode(500, new
+                {
+                    success = false,
+                    errorMessage = "A apărut o eroare la pre-commit review"
+                });
+            }
+        }
+
+        /// <summary>
+        /// Calculează o estimare detaliată a efortului pentru o listă de findings
+        /// POST /api/aireview/estimate-effort
+        /// </summary>
+        [HttpPost("estimate-effort")]
+        public IActionResult EstimateEffort([FromBody] EffortEstimationRequest request)
+        {
+            try
+            {
+                if (request.Findings == null || !request.Findings.Any())
+                {
+                    return BadRequest(new { success = false, message = "Lista de findings este goală" });
+                }
+
+                _logger.LogInformation("Calculare estimare efort pentru {Count} findings", request.Findings.Count);
+
+                var estimate = _effortEstimationService.CalculateDetailedEffort(request.Findings);
+
+                return Ok(new
+                {
+                    success = true,
+                    estimate
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Eroare la calcularea estimării efortului");
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "Eroare la calcularea estimării"
+                });
+            }
+        }
     }
+
+    #region DTOs for New Endpoints
+
+    public class IncrementalReviewRequest
+    {
+        public string RepositoryPath { get; set; } = string.Empty;
+        public string? BaseRef { get; set; } // Default: HEAD~1
+        public string? TargetRef { get; set; } // Default: HEAD
+    }
+
+    public class PreCommitRequest
+    {
+        public string RepositoryPath { get; set; } = string.Empty;
+    }
+
+    public class EffortEstimationRequest
+    {
+        public List<CodeFinding> Findings { get; set; } = new();
+    }
+
+    #endregion
 }
 

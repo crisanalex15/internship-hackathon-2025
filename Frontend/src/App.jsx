@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { MantineProvider } from "@mantine/core";
+import { MantineProvider, createTheme } from "@mantine/core";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { LoginForm } from "./components/auth/LoginForm";
@@ -14,9 +14,15 @@ import ModernCodeReviewPanel from "./components/review/ModernCodeReviewPanel";
 import ReviewHistory from "./components/review/ReviewHistory";
 import PreCommitPanel from "./components/review/PreCommitPanel";
 import MyProjectsPanel from "./components/projects/MyProjectsPanel";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 const queryClient = new QueryClient();
+
+// Tema Mantine configurată să respecte dark mode-ul custom
+const theme = createTheme({
+  primaryColor: 'blue',
+  fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif",
+});
 
 // IDE Container Component
 const IDEContainer = () => {
@@ -27,7 +33,6 @@ const IDEContainer = () => {
       <ViewTransition view={activeView}>
         {activeView === "review" && <ModernCodeReviewPanel />}
         {activeView === "history" && <ReviewHistory />}
-        {activeView === "diff" && <ModernCodeReviewPanel />}
         {activeView === "precommit" && <PreCommitPanel />}
         {activeView === "projects" && <MyProjectsPanel />}
       </ViewTransition>
@@ -68,9 +73,35 @@ const MainRoute = () => {
 };
 
 function App() {
+  const [colorScheme, setColorScheme] = useState("dark");
+
+  // Detect theme change and sync with Mantine
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      const theme = document.documentElement.getAttribute("data-theme");
+      const mantineScheme = theme || "dark";
+      setColorScheme(mantineScheme);
+      // Sync Mantine color scheme
+      document.documentElement.setAttribute("data-mantine-color-scheme", mantineScheme);
+    });
+
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["data-theme"],
+    });
+
+    // Initial check and setup
+    const theme = document.documentElement.getAttribute("data-theme");
+    const mantineScheme = theme || "dark";
+    setColorScheme(mantineScheme);
+    document.documentElement.setAttribute("data-mantine-color-scheme", mantineScheme);
+
+    return () => observer.disconnect();
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
-      <MantineProvider>
+      <MantineProvider theme={theme} defaultColorScheme={colorScheme}>
         <AuthProvider>
           <BrowserRouter>
             <Routes>

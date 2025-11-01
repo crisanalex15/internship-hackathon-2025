@@ -9,6 +9,7 @@ using System.Text;
 using Backend.Services.Auth;
 using Backend.Services.Email;
 using Backend.Services.AI;
+using Backend.Services.Git;
 
 namespace Backend
 {
@@ -122,6 +123,10 @@ namespace Backend
             builder.Services.AddHttpClient<LLMClient>();
             builder.Services.AddScoped<LLMClient>();
             builder.Services.AddScoped<AIReviewService>();
+            builder.Services.AddScoped<EffortEstimationService>();
+
+            // Înregistrare serviciu pentru Git Integration
+            builder.Services.AddScoped<GitService>();
 
             // Add controllers with views
             builder.Services.AddControllersWithViews()

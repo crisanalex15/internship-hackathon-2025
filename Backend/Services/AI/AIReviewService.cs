@@ -3,6 +3,7 @@ using Backend.DTO.ReviewDTO;
 using Backend.Models;
 using Backend.Areas.Identity.Data;
 using Microsoft.EntityFrameworkCore;
+using Backend.Services.Git;
 
 namespace Backend.Services.AI
 {
@@ -14,17 +15,20 @@ namespace Backend.Services.AI
         private readonly LLMClient _llmClient;
         private readonly AuthDbContext _dbContext;
         private readonly ILogger<AIReviewService> _logger;
+        private readonly GitService _gitService;
         private readonly string _promptTemplate;
 
         public AIReviewService(
             LLMClient llmClient,
             AuthDbContext dbContext,
             ILogger<AIReviewService> logger,
+            GitService gitService,
             IWebHostEnvironment environment)
         {
             _llmClient = llmClient;
             _dbContext = dbContext;
             _logger = logger;
+            _gitService = gitService;
 
             // Încarcă template-ul de prompt
             var templatePath = Path.Combine(environment.ContentRootPath, "Services", "AI", "prompt-template.txt");
@@ -229,6 +233,204 @@ Be clear, concise, and educational.";
             }
         }
 
+        /// <summary>
+        /// Efectuează un review incremental pe baza unui Git diff
+        /// </summary>
+        public async Task<ReviewResponse> PerformIncrementalReviewAsync(
+            string repositoryPath,
+            string userId,
+            string? baseRef = null,
+            string? targetRef = null)
+        {
+            try
+            {
+                _logger.LogInformation("Începe review incremental pentru repository {Repo}", repositoryPath);
+
+                // Validare repository
+                if (!_gitService.IsValidRepository(repositoryPath))
+                {
+                    return new ReviewResponse
+                    {
+                        Success = false,
+                        ErrorMessage = "Repository Git invalid"
+                    };
+                }
+
+                // Obține diff-ul
+                var diffResult = _gitService.GetDiff(
+                    repositoryPath,
+                    baseRef ?? "HEAD~1",
+                    targetRef ?? "HEAD"
+                );
+
+                if (!diffResult.Success || diffResult.Files.Count == 0)
+                {
+                    return new ReviewResponse
+                    {
+                        Success = false,
+                        ErrorMessage = diffResult.ErrorMessage ?? "Nu au fost găsite modificări"
+                    };
+                }
+
+                // Creează un review pentru fiecare fișier modificat
+                var allFindings = new List<CodeFinding>();
+                var totalEffortHours = 0.0;
+
+                foreach (var file in diffResult.Files)
+                {
+                    // Skip fișierele șterse
+                    if (file.Status == "Deleted")
+                    {
+                        continue;
+                    }
+
+                    // Review-ul se face pe patch-ul Git (doar modificările)
+                    var reviewRequest = new ReviewRequest
+                    {
+                        GitDiff = file.Patch,
+                        FileName = file.Path,
+                        Language = DetectLanguageFromPath(file.Path)
+                    };
+
+                    var fileReview = await PerformReviewAsync(reviewRequest, userId);
+
+                    if (fileReview.Success && fileReview.Findings.Any())
+                    {
+                        allFindings.AddRange(fileReview.Findings);
+
+                        if (fileReview.EffortEstimate != null)
+                        {
+                            totalEffortHours += fileReview.EffortEstimate.Hours;
+                        }
+                    }
+                }
+
+                // Creează răspunsul final
+                var response = new ReviewResponse
+                {
+                    Success = true,
+                    Findings = allFindings,
+                    EffortEstimate = new EffortEstimate
+                    {
+                        Hours = totalEffortHours,
+                        Complexity = CalculateComplexity(totalEffortHours),
+                        Description = $"Review incremental: {diffResult.TotalFiles} fișiere, {allFindings.Count} probleme"
+                    }
+                };
+
+                _logger.LogInformation("Review incremental finalizat: {Files} fișiere, {Issues} probleme",
+                    diffResult.TotalFiles, allFindings.Count);
+
+                return response;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Eroare la review-ul incremental");
+                return new ReviewResponse
+                {
+                    Success = false,
+                    ErrorMessage = $"Eroare: {ex.Message}"
+                };
+            }
+        }
+
+        /// <summary>
+        /// Efectuează pre-commit review pentru modificările staged
+        /// </summary>
+        public async Task<PreCommitReviewResult> PerformPreCommitReviewAsync(
+            string repositoryPath,
+            string userId)
+        {
+            try
+            {
+                _logger.LogInformation("Începe pre-commit review pentru {Repo}", repositoryPath);
+
+                // Obține modificările staged
+                var stagedChanges = _gitService.GetStagedChanges(repositoryPath);
+
+                if (!stagedChanges.Success)
+                {
+                    return new PreCommitReviewResult
+                    {
+                        Success = false,
+                        ErrorMessage = stagedChanges.ErrorMessage,
+                        ShouldBlockCommit = false
+                    };
+                }
+
+                if (stagedChanges.Files.Count == 0)
+                {
+                    return new PreCommitReviewResult
+                    {
+                        Success = true,
+                        Message = "Nu există modificări staged pentru review",
+                        ShouldBlockCommit = false,
+                        CriticalIssuesCount = 0,
+                        TotalIssuesCount = 0
+                    };
+                }
+
+                // Review fiecare fișier modificat
+                var allFindings = new List<CodeFinding>();
+
+                foreach (var file in stagedChanges.Files)
+                {
+                    if (file.Status == "Deleted") continue;
+
+                    var reviewRequest = new ReviewRequest
+                    {
+                        GitDiff = file.Patch,
+                        FileName = file.Path,
+                        Language = DetectLanguageFromPath(file.Path)
+                    };
+
+                    var fileReview = await PerformReviewAsync(reviewRequest, userId);
+
+                    if (fileReview.Success && fileReview.Findings.Any())
+                    {
+                        allFindings.AddRange(fileReview.Findings);
+                    }
+                }
+
+                // Calculează severitatea
+                var criticalIssues = allFindings.Count(f => f.Severity == "critical");
+                var highIssues = allFindings.Count(f => f.Severity == "high");
+
+                // Blochează commit-ul dacă există probleme critice
+                var shouldBlock = criticalIssues > 0;
+
+                var result = new PreCommitReviewResult
+                {
+                    Success = true,
+                    ShouldBlockCommit = shouldBlock,
+                    CriticalIssuesCount = criticalIssues,
+                    HighIssuesCount = highIssues,
+                    TotalIssuesCount = allFindings.Count,
+                    Findings = allFindings,
+                    Message = shouldBlock
+                        ? $"❌ COMMIT BLOCAT: {criticalIssues} probleme critice detectate!"
+                        : allFindings.Count > 0
+                            ? $"⚠️ {allFindings.Count} probleme detectate (commit permis)"
+                            : "✅ Nicio problemă detectată"
+                };
+
+                _logger.LogInformation("Pre-commit review finalizat: {Total} probleme ({Critical} critice)",
+                    allFindings.Count, criticalIssues);
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Eroare la pre-commit review");
+                return new PreCommitReviewResult
+                {
+                    Success = false,
+                    ErrorMessage = $"Eroare: {ex.Message}",
+                    ShouldBlockCommit = false
+                };
+            }
+        }
+
         #region Private Helper Methods
 
         /// <summary>
@@ -322,6 +524,50 @@ Be clear, concise, and educational.";
             {
                 return null;
             }
+        }
+
+        /// <summary>
+        /// Detectează limbajul de programare pe baza extensiei fișierului
+        /// </summary>
+        private string DetectLanguageFromPath(string filePath)
+        {
+            var extension = Path.GetExtension(filePath).ToLower();
+            return extension switch
+            {
+                ".cs" => "C#",
+                ".js" => "JavaScript",
+                ".jsx" => "JavaScript/React",
+                ".ts" => "TypeScript",
+                ".tsx" => "TypeScript/React",
+                ".py" => "Python",
+                ".java" => "Java",
+                ".cpp" or ".cc" or ".cxx" => "C++",
+                ".c" => "C",
+                ".rb" => "Ruby",
+                ".go" => "Go",
+                ".rs" => "Rust",
+                ".php" => "PHP",
+                ".swift" => "Swift",
+                ".kt" => "Kotlin",
+                ".sql" => "SQL",
+                ".html" => "HTML",
+                ".css" => "CSS",
+                ".scss" or ".sass" => "SASS/SCSS",
+                _ => "Unknown"
+            };
+        }
+
+        /// <summary>
+        /// Calculează complexitatea pe baza numărului de ore
+        /// </summary>
+        private string CalculateComplexity(double hours)
+        {
+            return hours switch
+            {
+                <= 1.0 => "low",
+                <= 4.0 => "medium",
+                _ => "high"
+            };
         }
 
         /// <summary>

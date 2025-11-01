@@ -264,6 +264,34 @@ namespace Backend.Controllers
         }
 
         /// <summary>
+        /// Descarcă fișierul curent (cu fix-urile aplicate)
+        /// </summary>
+        [HttpGet("{fileId}/download")]
+        public async Task<IActionResult> DownloadFile(string fileId, [FromQuery] string? fileName = null)
+        {
+            try
+            {
+                var userDir = GetUserTempDir();
+                var currentPath = Path.Combine(userDir, $"{fileId}_current.txt");
+                
+                if (!System.IO.File.Exists(currentPath))
+                {
+                    return NotFound(new { message = "Fișierul nu a fost găsit" });
+                }
+                
+                var content = await System.IO.File.ReadAllBytesAsync(currentPath);
+                var downloadFileName = fileName ?? $"fixed_{fileId}.txt";
+                
+                return File(content, "text/plain", downloadFileName);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error downloading file");
+                return StatusCode(500, new { message = "Eroare la descărcarea fișierului" });
+            }
+        }
+
+        /// <summary>
         /// Șterge fișierele temp pentru un fileId
         /// </summary>
         [HttpDelete("{fileId}")]
@@ -298,13 +326,21 @@ namespace Backend.Controllers
         {
             try
             {
-                _logger.LogInformation("Applying patch to content (length: {ContentLength})", content.Length);
-                _logger.LogDebug("Patch content: {Patch}", patch);
+                _logger.LogInformation("Aplicare patch pe conținut (lungime: {ContentLength})", content.Length);
+                _logger.LogDebug("Conținut patch: {Patch}", patch);
+                
+                // Normalizare line endings
+                content = content.Replace("\r\n", "\n");
+                patch = patch.Replace("\r\n", "\n");
                 
                 var contentLines = content.Split('\n').ToList();
                 var patchLines = patch.Split('\n');
                 
-                int currentContentLine = 0;
+                // Extrage liniile vechi și noi din patch
+                var oldLines = new List<string>();
+                var newLines = new List<string>();
+                int? startLineNumber = null;
+                
                 int patchLineIndex = 0;
                 
                 // Skip header lines (---, +++, diff, index)
@@ -317,8 +353,7 @@ namespace Backend.Controllers
                     patchLineIndex++;
                 }
                 
-                // Find @@ header to get line numbers
-                int? startLine = null;
+                // Găsește header-ul @@
                 while (patchLineIndex < patchLines.Length && !patchLines[patchLineIndex].StartsWith("@@"))
                 {
                     patchLineIndex++;
@@ -334,87 +369,14 @@ namespace Backend.Controllers
                     
                     if (headerMatch.Success)
                     {
-                        // old_start is 1-indexed in git diff, but we use 0-indexed lists
-                        startLine = int.Parse(headerMatch.Groups[1].Value) - 1;
-                        _logger.LogInformation("Found patch start line: {StartLine} (1-indexed: {OneIndexed})", 
-                            startLine, startLine + 1);
+                        startLineNumber = int.Parse(headerMatch.Groups[1].Value) - 1; // 0-indexed
+                        _logger.LogInformation("Start line din patch: {StartLine} (1-indexed: {OneIndexed})", 
+                            startLineNumber, startLineNumber + 1);
                     }
                     patchLineIndex++;
                 }
                 
-                // If no @@ header, try simple approach
-                if (startLine == null)
-                {
-                    _logger.LogWarning("No @@ header found in patch, using simple replacement");
-                    
-                    // Extract old and new code blocks
-                    var oldLines = new List<string>();
-                    var newLines = new List<string>();
-                    
-                    foreach (var line in patchLines)
-                    {
-                        if (line.StartsWith('-') && !line.StartsWith("---"))
-                        {
-                            oldLines.Add(line.Substring(1));
-                        }
-                        else if (line.StartsWith('+') && !line.StartsWith("+++"))
-                        {
-                            newLines.Add(line.Substring(1));
-                        }
-                    }
-                    
-                    if (oldLines.Count == 0 && newLines.Count > 0)
-                    {
-                        // Pure addition
-                        var newCode = string.Join("\n", newLines);
-                        return content + (content.EndsWith("\n") ? "" : "\n") + newCode;
-                    }
-                    
-                    // Try to find and replace the old code block
-                    var oldCodeBlock = string.Join("\n", oldLines);
-                    var newCodeBlock = string.Join("\n", newLines);
-                    
-                    if (content.Contains(oldCodeBlock))
-                    {
-                        return content.Replace(oldCodeBlock, newCodeBlock);
-                    }
-                    
-                    // Try with exact line matches
-                    var contentLinesList = contentLines;
-                    for (int i = 0; i <= contentLinesList.Count - oldLines.Count; i++)
-                    {
-                        bool matches = true;
-                        for (int j = 0; j < oldLines.Count; j++)
-                        {
-                            if (i + j >= contentLinesList.Count || 
-                                contentLinesList[i + j].TrimEnd() != oldLines[j].TrimEnd())
-                            {
-                                matches = false;
-                                break;
-                            }
-                        }
-                        
-                        if (matches)
-                        {
-                            // Found match, replace it
-                            contentLinesList.RemoveRange(i, oldLines.Count);
-                            contentLinesList.InsertRange(i, newLines);
-                            return string.Join("\n", contentLinesList);
-                        }
-                    }
-                    
-                    _logger.LogWarning("Could not find old code block in content");
-                    return null;
-                }
-                
-                // Apply patch using line numbers
-                var resultLines = new List<string>(contentLines);
-                int contentIndex = Math.Max(0, Math.Min(startLine.Value, resultLines.Count));
-                int linesRemoved = 0;
-                
-                _logger.LogInformation("Starting patch application at line index {ContentIndex}", contentIndex);
-                
-                // Process patch lines
+                // Extrage liniile din patch
                 for (int i = patchLineIndex; i < patchLines.Length; i++)
                 {
                     var line = patchLines[i];
@@ -424,83 +386,140 @@ namespace Backend.Controllers
                     
                     if (line.StartsWith('-') && !line.StartsWith("---"))
                     {
-                        // Remove line
-                        var lineToRemove = line.Substring(1);
-                        
-                        if (contentIndex < resultLines.Count)
-                        {
-                            // Try exact match first
-                            if (resultLines[contentIndex].TrimEnd() == lineToRemove.TrimEnd())
-                            {
-                                resultLines.RemoveAt(contentIndex);
-                                linesRemoved++;
-                                _logger.LogDebug("Removed line {Index}: {Line}", contentIndex, lineToRemove);
-                            }
-                            else
-                            {
-                                // Try to find the line nearby
-                                bool found = false;
-                                for (int j = Math.Max(0, contentIndex - 3); 
-                                     j < Math.Min(resultLines.Count, contentIndex + 10); 
-                                     j++)
-                                {
-                                    if (resultLines[j].TrimEnd() == lineToRemove.TrimEnd())
-                                    {
-                                        resultLines.RemoveAt(j);
-                                        contentIndex = j;
-                                        linesRemoved++;
-                                        found = true;
-                                        _logger.LogDebug("Removed line {Index} (found nearby): {Line}", j, lineToRemove);
-                                        break;
-                                    }
-                                }
-                                
-                                if (!found)
-                                {
-                                    _logger.LogWarning("Could not find line to remove: {Line}", lineToRemove);
-                                    // Skip this line
-                                    continue;
-                                }
-                            }
-                        }
-                        else
-                        {
-                            _logger.LogWarning("Content index {Index} out of range (max: {Max})", 
-                                contentIndex, resultLines.Count);
-                        }
+                        oldLines.Add(line.Substring(1));
                     }
                     else if (line.StartsWith('+') && !line.StartsWith("+++"))
                     {
-                        // Add line
-                        var lineToAdd = line.Substring(1);
-                        resultLines.Insert(contentIndex, lineToAdd);
-                        contentIndex++;
-                        _logger.LogDebug("Added line at {Index}: {Line}", contentIndex - 1, lineToAdd);
+                        newLines.Add(line.Substring(1));
                     }
                     else if (!line.StartsWith('@'))
                     {
-                        // Context line - advance index
-                        contentIndex++;
+                        // Context line
+                        oldLines.Add(line.StartsWith(" ") ? line.Substring(1) : line);
+                        newLines.Add(line.StartsWith(" ") ? line.Substring(1) : line);
                     }
                 }
                 
-                var result = string.Join("\n", resultLines);
+                _logger.LogInformation("Patch extras: {OldLines} linii vechi, {NewLines} linii noi", 
+                    oldLines.Count, newLines.Count);
                 
-                if (result != content)
+                // Dacă nu avem linii vechi, este o adăugare pură
+                if (oldLines.Count == 0 && newLines.Count > 0)
                 {
-                    _logger.LogInformation("Patch applied successfully. Lines removed: {Removed}, Content length changed: {OldLen} -> {NewLen}", 
-                        linesRemoved, content.Length, result.Length);
-                    return result;
+                    _logger.LogInformation("Adăugare pură de cod nou");
+                    var newCode = string.Join("\n", newLines);
+                    return content + (content.EndsWith("\n") ? "" : "\n") + newCode;
                 }
-                else
+                
+                // Dacă patch-ul nu are formatul standard, încearcă înlocuire simplă
+                if (oldLines.Count == 0 && newLines.Count == 0)
                 {
-                    _logger.LogWarning("Patch application resulted in no changes");
+                    _logger.LogWarning("Patch fără format standard, încerc interpretare directă");
+                    // Patch-ul poate fi doar codul nou, nu un diff
+                    var cleanPatch = patch.Trim();
+                    if (!string.IsNullOrEmpty(cleanPatch))
+                    {
+                        return content + (content.EndsWith("\n") ? "" : "\n") + cleanPatch;
+                    }
                     return null;
                 }
+                
+                // Încearcă mai întâi cu numerele de linie dacă le avem
+                if (startLineNumber.HasValue && startLineNumber.Value >= 0 && 
+                    startLineNumber.Value < contentLines.Count)
+                {
+                    _logger.LogInformation("Încerc aplicare cu numere de linie");
+                    var resultLines = new List<string>(contentLines);
+                    
+                    // Verifică dacă liniile vechi se potrivesc la poziția indicată
+                    bool matchesAtPosition = true;
+                    for (int i = 0; i < oldLines.Count && matchesAtPosition; i++)
+                    {
+                        int lineIdx = startLineNumber.Value + i;
+                        if (lineIdx >= resultLines.Count || 
+                            resultLines[lineIdx].TrimEnd() != oldLines[i].TrimEnd())
+                        {
+                            matchesAtPosition = false;
+                        }
+                    }
+                    
+                    if (matchesAtPosition)
+                    {
+                        resultLines.RemoveRange(startLineNumber.Value, oldLines.Count);
+                        resultLines.InsertRange(startLineNumber.Value, newLines);
+                        _logger.LogInformation("Patch aplicat cu succes folosind numerele de linie");
+                        return string.Join("\n", resultLines);
+                    }
+                }
+                
+                // Fallback: caută bloc de cod în tot fișierul
+                _logger.LogInformation("Caut blocul de cod vechi în tot fișierul");
+                var oldCodeBlock = string.Join("\n", oldLines);
+                var newCodeBlock = string.Join("\n", newLines);
+                
+                // Încearcă înlocuire directă
+                if (content.Contains(oldCodeBlock))
+                {
+                    _logger.LogInformation("Găsit bloc de cod pentru înlocuire directă");
+                    return content.Replace(oldCodeBlock, newCodeBlock);
+                }
+                
+                // Încearcă cu potrivire linie cu linie
+                for (int i = 0; i <= contentLines.Count - oldLines.Count; i++)
+                {
+                    bool matches = true;
+                    for (int j = 0; j < oldLines.Count; j++)
+                    {
+                        if (i + j >= contentLines.Count || 
+                            contentLines[i + j].TrimEnd() != oldLines[j].TrimEnd())
+                        {
+                            matches = false;
+                            break;
+                        }
+                    }
+                    
+                    if (matches)
+                    {
+                        var resultLines = new List<string>(contentLines);
+                        resultLines.RemoveRange(i, oldLines.Count);
+                        resultLines.InsertRange(i, newLines);
+                        _logger.LogInformation("Patch aplicat cu succes prin căutare linie cu linie la poziția {Pos}", i);
+                        return string.Join("\n", resultLines);
+                    }
+                }
+                
+                // Încearcă o potrivire mai flexibilă (ignoră whitespace-ul de la început/sfârșit)
+                _logger.LogInformation("Încerc potrivire flexibilă");
+                for (int i = 0; i <= contentLines.Count - oldLines.Count; i++)
+                {
+                    bool matches = true;
+                    for (int j = 0; j < oldLines.Count; j++)
+                    {
+                        if (i + j >= contentLines.Count || 
+                            contentLines[i + j].Trim() != oldLines[j].Trim())
+                        {
+                            matches = false;
+                            break;
+                        }
+                    }
+                    
+                    if (matches)
+                    {
+                        var resultLines = new List<string>(contentLines);
+                        resultLines.RemoveRange(i, oldLines.Count);
+                        resultLines.InsertRange(i, newLines);
+                        _logger.LogInformation("Patch aplicat cu succes prin potrivire flexibilă la poziția {Pos}", i);
+                        return string.Join("\n", resultLines);
+                    }
+                }
+                
+                _logger.LogWarning("Nu s-a putut aplica patch-ul - codul vechi nu a fost găsit în conținut");
+                _logger.LogDebug("Căutat: {OldBlock}", oldCodeBlock);
+                return null;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error applying patch");
+                _logger.LogError(ex, "Eroare la aplicarea patch-ului");
                 return null;
             }
         }

@@ -19,6 +19,9 @@ public class AuthDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<Project> Projects { get; set; }
     public DbSet<ProjectFile> ProjectFiles { get; set; }
 
+    // DbSet pentru Comentarii (Threaded Comments System)
+    public DbSet<Comment> Comments { get; set; }
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
@@ -50,6 +53,37 @@ public class AuthDbContext : IdentityDbContext<ApplicationUser>
         builder.Entity<IdentityUserLogin<string>>().ToTable("UserLogins");
         builder.Entity<IdentityRoleClaim<string>>().ToTable("RoleClaims");
         builder.Entity<IdentityUserToken<string>>().ToTable("UserTokens");
+
+        // Configurare Comment (threaded comments cu self-referencing)
+        builder.Entity<Comment>(entity =>
+        {
+            entity.ToTable("Comments");
+
+            // Relația self-referencing pentru replies
+            entity.HasOne(c => c.Parent)
+                .WithMany(c => c.Replies)
+                .HasForeignKey(c => c.ParentId)
+                .OnDelete(DeleteBehavior.Restrict); // Nu șterge cascade pentru a preveni probleme
+
+            // Relația cu ReviewHistory
+            entity.HasOne(c => c.Review)
+                .WithMany()
+                .HasForeignKey(c => c.ReviewId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Relația cu ApplicationUser (Author)
+            entity.HasOne(c => c.Author)
+                .WithMany()
+                .HasForeignKey(c => c.AuthorId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Index-uri pentru performanță
+            entity.HasIndex(c => c.ReviewId);
+            entity.HasIndex(c => c.AuthorId);
+            entity.HasIndex(c => c.ParentId);
+            entity.HasIndex(c => new { c.FilePath, c.LineNumber });
+            entity.HasIndex(c => c.Status);
+        });
 
     }
 }
