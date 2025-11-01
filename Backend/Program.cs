@@ -118,9 +118,14 @@ namespace Backend
             builder.Services.AddScoped<IEmailService, EmailService>();
             builder.Services.AddScoped<ISocialAuthService, SocialAuthService>();
 
-            // Înregistrare serviciu AI
+            // Înregistrare servicii AI
             builder.Services.AddHttpClient<AiService>();
             builder.Services.AddScoped<AiService>();
+            
+            // Înregistrare servicii pentru AI Code Review
+            builder.Services.AddHttpClient<LLMClient>();
+            builder.Services.AddScoped<LLMClient>();
+            builder.Services.AddScoped<AIReviewService>();
 
             // Add controllers with views
             builder.Services.AddControllersWithViews()

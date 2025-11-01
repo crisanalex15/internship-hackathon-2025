@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using Backend.Models;
 
 namespace Backend.Areas.Identity.Data;
 
@@ -10,6 +11,9 @@ public class AuthDbContext : IdentityDbContext<ApplicationUser>
         : base(options)
     {
     }
+
+    // DbSet pentru AI Code Review
+    public DbSet<ReviewHistory> ReviewHistories { get; set; }
 
     protected override void OnModelCreating(ModelBuilder builder)
     {

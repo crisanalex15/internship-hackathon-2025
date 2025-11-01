@@ -9,6 +9,7 @@ import { UserProfile } from "./components/profile/UserProfile";
 import { ForgotPasswordForm } from "./components/auth/ForgotPasswordForm";
 import { SocialAuthCallback } from "./components/auth/SocialAuthCallback";
 import { LoadingSpinner } from "./components/common/LoadingSpinner";
+import CodeReviewPanel from "./components/review/CodeReviewPanel";
 
 const queryClient = new QueryClient();
 
@@ -99,6 +100,14 @@ function App() {
                   element={
                     <ProtectedRoute>
                       <UserProfile />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/review"
+                  element={
+                    <ProtectedRoute>
+                      <CodeReviewPanel />
                     </ProtectedRoute>
                   }
                 />
