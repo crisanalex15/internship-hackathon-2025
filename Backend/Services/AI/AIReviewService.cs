@@ -579,7 +579,7 @@ Be clear, concise, and educational.";
 
 Analyze the following code thoroughly and identify ALL types of issues:
 
-**1. SYNTAX & COMPILATION** - Code that won't compile or run
+**1. SYNTAX & COMPILATION** - Code that won't compile or run (missing semicolons, parentheses, typos)
 **2. LOGIC & CORRECTNESS** - Incorrect validation, wrong conditions, edge cases
 **3. ERROR HANDLING** - Missing try-catch, no null checks, silent failures
 **4. DESIGN PATTERNS** - Tight coupling, no DI, violating SOLID principles
@@ -593,8 +593,9 @@ Analyze the following code thoroughly and identify ALL types of issues:
 2. Do not report false positives - understand the context fully
 3. Be accurate with line numbers - they matter for the developer
 4. Prioritize severity correctly - critical issues first
-5. Provide clear, actionable suggestions with code examples when possible
-6. Consider the bigger picture - architecture, maintainability, scalability
+5. **ALWAYS provide a ""patch"" field with unified diff format for EVERY finding**
+6. Provide clear, actionable suggestions with code examples when possible
+7. Consider the bigger picture - architecture, maintainability, scalability
 
 **Severity Levels:**
 - ""critical"": Syntax errors, breaking bugs, severe security vulnerabilities
@@ -610,6 +611,15 @@ Analyze the following code thoroughly and identify ALL types of issues:
 - ""style"": Code formatting and conventions
 - ""maintainability"": Code organization and long-term sustainability
 
+**Patch Format (REQUIRED for all findings):**
+Use unified diff format:
+@@ -lineStart,count +lineStart,count @@
+-old code line
++new fixed code line
+
+Example for missing parentheses:
+""patch"": ""@@ -10,1 +10,1 @@\n-                int number = scanner.nextInt;\n+                int number = scanner.nextInt();""
+
 **For Each Issue Provide:**
 - file: filename being reviewed
 - lineStart: starting line number of the issue
@@ -618,7 +628,7 @@ Analyze the following code thoroughly and identify ALL types of issues:
 - category: one of [syntax, security, performance, bug, style, maintainability]
 - message: clear, concise description of the problem
 - suggestion: actionable fix with explanation
-- patch: (optional) unified diff format showing the fix
+- patch: **MANDATORY** - unified diff format showing the exact fix
 
 **Effort Estimation:**
 Provide realistic time estimate to fix all issues:
@@ -638,9 +648,9 @@ Return ONLY valid JSON in this format:
       ""lineEnd"": 10,
       ""severity"": ""critical"",
       ""category"": ""syntax"",
-      ""message"": ""The error Message"",
-      ""suggestion"": ""The suggestion"",
-      ""patch"": """"
+      ""message"": ""Missing parentheses for method call"",
+      ""suggestion"": ""Add () to call the method properly"",
+      ""patch"": ""@@ -10,1 +10,1 @@\n-                int number = scanner.nextInt;\n+                int number = scanner.nextInt();""
     }
   ],
   ""effortEstimate"": {

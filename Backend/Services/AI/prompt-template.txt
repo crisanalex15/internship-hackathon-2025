@@ -133,6 +133,15 @@ Analyze the following code thoroughly and provide concise, actionable feedback o
 
 File being reviewed: <<<FILE_NAME>>>
 
+**CRITICAL: For EVERY finding, you MUST provide a "patch" field with a unified diff format showing the exact fix.**
+
+The patch should be in unified diff format:
+```
+@@ -lineStart,count +lineStart,count @@
+-old code line
++new fixed code line
+```
+
 Return ONLY valid JSON (no markdown, no extra text):
 
 {
@@ -140,38 +149,38 @@ Return ONLY valid JSON (no markdown, no extra text):
     {
       "file": "<<<FILE_NAME>>>",
       "lineStart": 10,
-      "lineEnd": 12,
-      "severity": "medium",
-      "category": "maintainability",
-      "message": "Poor input validation - checking order == \"\" is insufficient",
-      "suggestion": "Use string.IsNullOrWhiteSpace(order) to also catch strings with only whitespace",
-      "patch": ""
+      "lineEnd": 10,
+      "severity": "critical",
+      "category": "syntax",
+      "message": "Missing parentheses for method call - scanner.nextInt should be scanner.nextInt()",
+      "suggestion": "Add parentheses () to call the nextInt() method properly",
+      "patch": "@@ -10,1 +10,1 @@\n-                int number = scanner.nextInt;\n+                int number = scanner.nextInt();"
     },
     {
       "file": "<<<FILE_NAME>>>",
       "lineStart": 15,
-      "lineEnd": 18,
+      "lineEnd": 15,
       "severity": "medium",
       "category": "maintainability",
-      "message": "Using Console.WriteLine for logging instead of proper logging framework",
-      "suggestion": "Inject ILogger<OrderManager> and use logger.LogInformation() for better logging control",
-      "patch": ""
+      "message": "Poor input validation - checking order == \"\" is insufficient",
+      "suggestion": "Use string.IsNullOrWhiteSpace(order) to also catch strings with only whitespace",
+      "patch": "@@ -15,1 +15,1 @@\n-            if (order == \"\")\n+            if (string.IsNullOrWhiteSpace(order))"
     },
     {
       "file": "<<<FILE_NAME>>>",
       "lineStart": 20,
-      "lineEnd": 30,
+      "lineEnd": 22,
       "severity": "high",
-      "category": "maintainability",
-      "message": "No error handling for database operations - operations can fail silently",
-      "suggestion": "Wrap database operations in try-catch blocks and make methods async Task for proper error handling",
-      "patch": ""
+      "category": "bug",
+      "message": "Missing null check before accessing object property",
+      "suggestion": "Add null check to prevent NullReferenceException",
+      "patch": "@@ -20,3 +20,6 @@\n-            var name = user.Name;\n-            Console.WriteLine(name);\n+            if (user != null) {\n+                var name = user.Name;\n+                Console.WriteLine(name);\n+            }"
     }
   ],
   "effortEstimate": {
     "hours": 2.0,
     "complexity": "medium",
-    "description": "Refactor validation logic, add proper logging, implement error handling, add async/await"
+    "description": "Fix syntax errors, refactor validation logic, add null checks"
   }
 }
 
@@ -187,11 +196,21 @@ If code is genuinely clean (rare):
 
 ### 🚨 Important Reminders:
 
-1. **Read carefully** - Don't miss subtle logic errors
+1. **Read carefully** - Don't miss subtle logic errors like missing parentheses, semicolons, or typos
 2. **Be thorough** - Check ALL aspects (syntax, logic, design, performance, security)
-3. **Be practical** - Focus on issues that truly matter
-4. **Be helpful** - Provide clear, actionable suggestions
-5. **Be accurate** - Get line numbers right
+3. **Generate patches** - ALWAYS provide a "patch" field in unified diff format for EVERY finding
+4. **Be practical** - Focus on issues that truly matter
+5. **Be helpful** - Provide clear, actionable suggestions with working code fixes
+6. **Be accurate** - Get line numbers right and ensure patches are syntactically correct
+
+### 📦 Patch Format Rules:
+
+- Use unified diff format: `@@ -oldLine,count +newLine,count @@`
+- Show old lines with `-` prefix
+- Show new lines with `+` prefix
+- Include enough context for the fix to be clear
+- Escape special characters in JSON strings (use \\n for newlines)
+- Make sure the patch is a valid, compilable fix
 
 Code to review:
 
