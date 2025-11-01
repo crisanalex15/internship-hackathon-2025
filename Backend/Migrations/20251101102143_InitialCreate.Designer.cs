@@ -11,8 +11,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Backend.Migrations
 {
     [DbContext(typeof(AuthDbContext))]
-    [Migration("20250912123412_AuthMigration8")]
-    partial class AuthMigration8
+    [Migration("20251101102143_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -26,6 +26,9 @@ namespace Backend.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<int>("AccessFailedCount")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("AccessFailedCountPasswordReset")
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("ConcurrencyStamp")
@@ -66,6 +69,9 @@ namespace Backend.Migrations
                     b.Property<DateTimeOffset?>("LockoutEnd")
                         .HasColumnType("TEXT");
 
+                    b.Property<DateTime?>("LockoutEndPasswordReset")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("NormalizedEmail")
                         .HasMaxLength(256)
                         .HasColumnType("TEXT");
@@ -89,6 +95,9 @@ namespace Backend.Migrations
                     b.Property<DateTime?>("RefreshTokenExpiryTime")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("ResetPasswordCode")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("SecurityStamp")
                         .HasColumnType("TEXT");
 
@@ -103,6 +112,9 @@ namespace Backend.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<DateTime?>("VerificationCodeExpiryTime")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("VerificationCodePasswordExpiryTime")
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
