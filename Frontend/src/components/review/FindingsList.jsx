@@ -12,6 +12,9 @@ import {
   ActionIcon,
   Tooltip,
   Loader,
+  Title,
+  List,
+  Divider,
 } from "@mantine/core";
 import {
   IconChevronDown,
@@ -65,13 +68,120 @@ const FindingItem = ({ finding, index }) => {
     setExplaining(true);
     try {
       const response = await reviewService.explainFinding(finding);
-      setExplanation(response.data.explanation);
+      const rawExplanation = response.data.explanation;
+      
+      // Try to parse if it's JSON, otherwise use as-is
+      try {
+        const parsed = JSON.parse(rawExplanation);
+        setExplanation(formatExplanation(parsed));
+      } catch {
+        setExplanation(rawExplanation);
+      }
     } catch (error) {
       console.error("Eroare la obținerea explicațiilor:", error);
       setExplanation("Nu s-au putut obține explicații suplimentare.");
     } finally {
       setExplaining(false);
     }
+  };
+
+  const formatExplanation = (parsed) => {
+    let formatted = "";
+
+    if (parsed.why_this_is_an_issue) {
+      formatted += "**De ce este o problemă:**\n\n";
+      formatted += parsed.why_this_is_an_issue + "\n\n";
+    }
+
+    if (parsed.potential_consequences_if_not_fixed && Array.isArray(parsed.potential_consequences_if_not_fixed)) {
+      formatted += "**Consecințe potențiale:**\n\n";
+      parsed.potential_consequences_if_not_fixed.forEach((item, idx) => {
+        formatted += `${idx + 1}. ${item}\n`;
+      });
+      formatted += "\n";
+    }
+
+    if (parsed.best_practices_related_to_this_issue && Array.isArray(parsed.best_practices_related_to_this_issue)) {
+      formatted += "**Best Practices:**\n\n";
+      parsed.best_practices_related_to_this_issue.forEach((item, idx) => {
+        formatted += `• ${item}\n`;
+      });
+      formatted += "\n";
+    }
+
+    if (parsed.step_by_step_guide_to_fix_it && Array.isArray(parsed.step_by_step_guide_to_fix_it)) {
+      formatted += "**Ghid pas cu pas pentru rezolvare:**\n\n";
+      parsed.step_by_step_guide_to_fix_it.forEach((item, idx) => {
+        formatted += `**Pasul ${idx + 1}:** ${item}\n\n`;
+      });
+    }
+
+    return formatted.trim();
+  };
+
+  const renderFormattedExplanation = (text) => {
+    const lines = text.split('\n');
+    const elements = [];
+    let key = 0;
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      
+      // Check if it's a bold header (starts with **)
+      if (line.startsWith('**') && line.endsWith(':**')) {
+        elements.push(
+          <Text key={key++} weight={700} size="sm" mt={elements.length > 0 ? "md" : 0} mb="xs" style={{ color: "var(--accent-color)" }}>
+            {line.replace(/\*\*/g, '')}
+          </Text>
+        );
+      }
+      // Check if it's bold text
+      else if (line.startsWith('**') && line.includes(':**')) {
+        const match = line.match(/\*\*(.*?):\*\* (.*)/);
+        if (match) {
+          elements.push(
+            <Text key={key++} size="sm" mb="xs">
+              <Text component="span" weight={600} style={{ color: "#3b82f6" }}>
+                {match[1]}:
+              </Text>{" "}
+              {match[2]}
+            </Text>
+          );
+        } else {
+          elements.push(
+            <Text key={key++} weight={600} size="sm" mb="xs">
+              {line.replace(/\*\*/g, '')}
+            </Text>
+          );
+        }
+      }
+      // Check if it's a numbered list
+      else if (line.match(/^\d+\.\s/)) {
+        elements.push(
+          <Text key={key++} size="sm" mb="xs" pl="md">
+            {line}
+          </Text>
+        );
+      }
+      // Check if it's a bullet list
+      else if (line.startsWith('• ')) {
+        elements.push(
+          <Text key={key++} size="sm" mb="xs" pl="md">
+            {line}
+          </Text>
+        );
+      }
+      // Regular text
+      else if (line.trim()) {
+        elements.push(
+          <Text key={key++} size="sm" mb="xs" color="dimmed" style={{ lineHeight: 1.6 }}>
+            {line}
+          </Text>
+        );
+      }
+    }
+
+    return elements;
   };
 
   const handleApplyFix = async () => {
@@ -160,15 +270,81 @@ const FindingItem = ({ finding, index }) => {
             )}
 
             {explanation && (
-              <Alert
-                icon={<IconBulb size={16} />}
-                title="Explicație detaliată"
-                color="blue"
-              >
-                <Text size="sm" style={{ whiteSpace: "pre-line" }}>
-                  {explanation}
-                </Text>
-              </Alert>
+              <Paper p="md" withBorder style={{ backgroundColor: "#f0f7ff" }}>
+                <Group spacing="xs" mb="md">
+                  <IconBulb size={20} color="#1971c2" />
+                  <Title order={5} color="#1971c2">Explicație detaliată</Title>
+                </Group>
+                <Stack spacing="md">
+                  {(() => {
+                    try {
+                      const parsed = JSON.parse(explanation);
+                      return (
+                        <>
+                          {parsed.why_this_is_an_issue && (
+                            <>
+                              <div>
+                                <Text weight={600} size="sm" mb="xs" color="dimmed">
+                                  De ce este aceasta o problemă?
+                                </Text>
+                                <Text size="sm">{parsed.why_this_is_an_issue}</Text>
+                              </div>
+                              <Divider />
+                            </>
+                          )}
+                          
+                          {parsed.potential_consequences_if_not_fixed && parsed.potential_consequences_if_not_fixed.length > 0 && (
+                            <>
+                              <div>
+                                <Text weight={600} size="sm" mb="xs" color="dimmed">
+                                  Consecințe potențiale dacă nu este rezolvată:
+                                </Text>
+                                <List size="sm" spacing="xs">
+                                  {parsed.potential_consequences_if_not_fixed.map((item, idx) => (
+                                    <List.Item key={idx}>{item}</List.Item>
+                                  ))}
+                                </List>
+                              </div>
+                              <Divider />
+                            </>
+                          )}
+                          
+                          {parsed.best_practices_related_to_this_issue && parsed.best_practices_related_to_this_issue.length > 0 && (
+                            <>
+                              <div>
+                                <Text weight={600} size="sm" mb="xs" color="dimmed">
+                                  Best practices:
+                                </Text>
+                                <List size="sm" spacing="xs">
+                                  {parsed.best_practices_related_to_this_issue.map((item, idx) => (
+                                    <List.Item key={idx}>{item}</List.Item>
+                                  ))}
+                                </List>
+                              </div>
+                              <Divider />
+                            </>
+                          )}
+                          
+                          {parsed.step_by_step_guide_to_fix_it && parsed.step_by_step_guide_to_fix_it.length > 0 && (
+                            <div>
+                              <Text weight={600} size="sm" mb="xs" color="dimmed">
+                                Cum să rezolvi pas cu pas:
+                              </Text>
+                              <List size="sm" spacing="xs" type="ordered">
+                                {parsed.step_by_step_guide_to_fix_it.map((item, idx) => (
+                                  <List.Item key={idx}>{item}</List.Item>
+                                ))}
+                              </List>
+                            </div>
+                          )}
+                        </>
+                      );
+                    } catch (e) {
+                      return <Text size="sm" style={{ whiteSpace: "pre-line" }}>{explanation}</Text>;
+                    }
+                  })()}
+                </Stack>
+              </Paper>
             )}
 
             {fixResult && (

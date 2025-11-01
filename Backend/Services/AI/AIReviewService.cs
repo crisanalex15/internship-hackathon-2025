@@ -66,8 +66,7 @@ namespace Backend.Services.AI
                 var reviewType = !string.IsNullOrWhiteSpace(request.Code) ? "full" : "diff";
                 var prompt = _promptTemplate
                     .Replace("<<<CODE_OR_DIFF>>>", codeToReview)
-                    .Replace("<<<FILE_NAME>>>", request.FileName)
-                    .Replace("<<<LANGUAGE>>>", request.Language);
+                    .Replace("<<<FILE_NAME>>>", request.FileName ?? "unknown");
 
                 // Trimite către LLM
                 var llmResponse = await _llmClient.SendPromptAsync(prompt, jsonMode: true);
@@ -202,28 +201,31 @@ namespace Backend.Services.AI
             try
             {
                 var explainPrompt = $@"
-You are a senior software engineer. Explain in detail the following code issue:
+You are a senior software engineer explaining a code issue.
 
-**Issue:** {finding.Message}
-**Severity:** {finding.Severity}
-**Location:** {finding.File}, lines {finding.LineStart}-{finding.LineEnd}
-**Suggestion:** {finding.Suggestion}
+Issue: {finding.Message}
+Severity: {finding.Severity}
+Category: {finding.Category}
+Location: {finding.File}, lines {finding.LineStart}-{finding.LineEnd}
+Suggestion: {finding.Suggestion}
 
-Provide a detailed explanation including:
-1. Why this is an issue
-2. Potential consequences if not fixed
-3. Best practices related to this issue
-4. Step-by-step guide to fix it
+Return ONLY a JSON object with this structure:
+{{
+  ""why_this_is_an_issue"": ""explain why this is a problem"",
+  ""potential_consequences_if_not_fixed"": [""consequence 1"", ""consequence 2""],
+  ""best_practices_related_to_this_issue"": [""practice 1"", ""practice 2""],
+  ""step_by_step_guide_to_fix_it"": [""step 1"", ""step 2"", ""step 3""]
+}}
 
 Be clear, concise, and educational.";
 
-                var explanation = await _llmClient.SendPromptAsync(explainPrompt, jsonMode: false);
+                var explanation = await _llmClient.SendPromptAsync(explainPrompt, jsonMode: true);
                 return explanation;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Eroare la cererea explicațiilor pentru finding");
-                return $"Nu s-au putut obține explicații: {ex.Message}";
+                return $"{{\"why_this_is_an_issue\": \"Nu s-au putut obține explicații: {ex.Message}\"}}";
             }
         }
 
@@ -327,35 +329,95 @@ Be clear, concise, and educational.";
         /// </summary>
         private string GetDefaultPromptTemplate()
         {
-            return @"You are a strict senior software engineer performing code review.
-Analyze the following code and return a JSON object with findings and effort estimate.
+            return @"You are an expert code reviewer with deep knowledge of software engineering best practices.
+
+Analyze the following code and provide concise, actionable feedback.
+
+### 🔍 Analysis Guidelines:
+
+**Identify Issues:**
+- Syntax errors (missing semicolons, typos, undefined variables)
+- Security vulnerabilities (SQL injection, XSS, hardcoded secrets, authentication issues)
+- Logic bugs (null references, off-by-one errors, unreachable code, edge cases)
+- Performance issues (inefficient algorithms, memory leaks, unnecessary computations)
+- Code quality (duplicated code, poor naming, overly complex functions, lack of modularity)
+- Bad practices (magic numbers, tight coupling, lack of error handling)
+
+**Review Rules:**
+1. Only report issues that actually exist in the code
+2. Do not report false positives - understand the context fully
+3. Be accurate with line numbers - they matter for the developer
+4. Prioritize severity correctly - critical issues first
+5. Provide clear, actionable suggestions with code examples when possible
+6. Consider the bigger picture - architecture, maintainability, scalability
+
+**Severity Levels:**
+- ""critical"": Syntax errors, breaking bugs, severe security vulnerabilities
+- ""high"": Major bugs, security issues, significant performance problems
+- ""medium"": Moderate bugs, performance concerns, code quality issues
+- ""low"": Style issues, minor improvements, best practice suggestions
+
+**Categories:**
+- ""syntax"": Code that won't compile or run
+- ""security"": Vulnerabilities and security concerns
+- ""performance"": Speed and efficiency issues
+- ""bug"": Logic errors and incorrect behavior
+- ""style"": Code formatting and conventions
+- ""maintainability"": Code organization and long-term sustainability
+
+**For Each Issue Provide:**
+- file: filename being reviewed
+- lineStart: starting line number of the issue
+- lineEnd: ending line number of the issue
+- severity: one of [critical, high, medium, low]
+- category: one of [syntax, security, performance, bug, style, maintainability]
+- message: clear, concise description of the problem
+- suggestion: actionable fix with explanation
+- patch: (optional) unified diff format showing the fix
+
+**Effort Estimation:**
+Provide realistic time estimate to fix all issues:
+- hours: decimal number (e.g., 0.5, 2.0, 8.0)
+- complexity: ""low"", ""medium"", or ""high""
+- description: brief summary of what needs to be done
 
 File being reviewed: <<<FILE_NAME>>>
-Programming Language: <<<LANGUAGE>>>
 
-IMPORTANT: Use ""<<<FILE_NAME>>>"" as the file name for ALL findings!
+Return ONLY valid JSON in this format:
 
-Return ONLY valid JSON in this structure:
 {
   ""findings"": [
     {
       ""file"": ""<<<FILE_NAME>>>"",
-      ""lineStart"": 0,
-      ""lineEnd"": 0,
-      ""severity"": ""medium"",
-      ""message"": ""Issue description"",
-      ""suggestion"": ""How to fix"",
-      ""category"": ""category""
+      ""lineStart"": 10,
+      ""lineEnd"": 10,
+      ""severity"": ""critical"",
+      ""category"": ""syntax"",
+      ""message"": ""The error Message"",
+      ""suggestion"": ""The suggestion"",
+      ""patch"": """"
     }
   ],
   ""effortEstimate"": {
+    ""hours"": 0.5,
+    ""complexity"": ""low"",
+    ""description"": ""Fix syntax error""
+  }
+}
+
+If no issues found:
+
+{
+  ""findings"": [],
+  ""effortEstimate"": {
     ""hours"": 0,
-    ""complexity"": ""medium"",
-    ""description"": ""Brief explanation""
+    ""complexity"": ""low"",
+    ""description"": ""No issues found""
   }
 }
 
 Code to review:
+
 <<<CODE_OR_DIFF>>>";
         }
 

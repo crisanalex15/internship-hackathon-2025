@@ -12,7 +12,6 @@ import {
   Loader,
   Text,
   Tabs,
-  Select,
   px,
 } from "@mantine/core";
 import {
@@ -31,24 +30,12 @@ const CodeReviewPanel = () => {
   const [code, setCode] = useState("");
   const [gitDiff, setGitDiff] = useState("");
   const [fileName, setFileName] = useState("");
-  const [language, setLanguage] = useState("javascript");
   const [reviewMode, setReviewMode] = useState("code"); // 'code' sau 'diff'
 
   const [loading, setLoading] = useState(false);
   const [reviewResult, setReviewResult] = useState(null);
   const [error, setError] = useState(null);
   const [ollamaStatus, setOllamaStatus] = useState(null);
-
-  const languages = [
-    { value: "javascript", label: "JavaScript" },
-    { value: "typescript", label: "TypeScript" },
-    { value: "python", label: "Python" },
-    { value: "csharp", label: "C#" },
-    { value: "java", label: "Java" },
-    { value: "go", label: "Go" },
-    { value: "rust", label: "Rust" },
-    { value: "cpp", label: "C++" },
-  ];
 
   // Verifică status-ul Ollama la mount
   useEffect(() => {
@@ -76,7 +63,6 @@ const CodeReviewPanel = () => {
     try {
       const requestData = {
         fileName: fileName || "unknown",
-        language: language,
       };
 
       if (reviewMode === "code") {
@@ -181,21 +167,12 @@ const CodeReviewPanel = () => {
           <Tabs.Panel value="code" pt="md">
             <Paper shadow="sm" p="md" withBorder>
               <Stack spacing="md">
-                <Group grow>
-                  <Select
-                    label="Limbaj de programare"
-                    placeholder="Selectează limbajul"
-                    value={language}
-                    onChange={setLanguage}
-                    data={languages}
-                  />
-                  <Textarea
-                    label="Nume fișier"
-                    placeholder="exemplu.js"
-                    value={fileName}
-                    onChange={(e) => setFileName(e.target.value)}
-                  />
-                </Group>
+                <Textarea
+                  label="Nume fișier (opțional)"
+                  placeholder="exemplu.js, MyClass.cs, main.py, etc."
+                  value={fileName}
+                  onChange={(e) => setFileName(e.target.value)}
+                />
 
                 <Textarea
                   label="Cod sursă"
