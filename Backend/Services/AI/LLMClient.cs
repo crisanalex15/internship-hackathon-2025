@@ -59,8 +59,8 @@ namespace Backend.Services.AI
                     Format = jsonMode ? "json" : null,
                     Options = new OllamaOptions
                     {
-                        Temperature = 0.0, // Foarte jos pentru răspunsuri exacte, fără inventare
-                        TopP = 0.1, // Limitează creativitatea
+                        Temperature = 0.3, // Permite înțelegere mai bună a contextului
+                        TopP = 0.5, // Balans între precizie și flexibilitate
                         NumPredict = 4096
                     }
                 };
