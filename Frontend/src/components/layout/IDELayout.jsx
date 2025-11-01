@@ -11,13 +11,17 @@ import {
   IconBrandGithub,
   IconSparkles,
   IconGitCommit,
+  IconFolder,
 } from "@tabler/icons-react";
 import { useAuth } from "../../context/AuthContext";
+import ProjectSearchBar from "../projects/ProjectSearchBar";
+import ProjectReviewPanel from "../projects/ProjectReviewPanel";
 import "./IDELayout.css";
 
 const IDELayout = ({ children, activeView, onViewChange }) => {
   const { user, logout } = useAuth();
   const [darkMode, setDarkMode] = useState(true);
+  const [selectedProject, setSelectedProject] = useState(null);
 
   // Set initial theme
   useEffect(() => {
@@ -34,6 +38,7 @@ const IDELayout = ({ children, activeView, onViewChange }) => {
     { icon: IconGitCommit, label: "Pre-Commit", value: "precommit", color: "#22c55e" },
     { icon: IconHistory, label: "History", value: "history", color: "#A78BFA" },
     { icon: IconBrandGithub, label: "Git Diff", value: "diff", color: "#34D399" },
+    { icon: IconFolder, label: "My Projects", value: "projects", color: "#F59E0B" },
   ];
 
   return (
@@ -105,7 +110,22 @@ const IDELayout = ({ children, activeView, onViewChange }) => {
 
       {/* Main Content Area */}
       <div className="ide-main">
-        <div className="ide-content">{children}</div>
+        {/* Header cu SearchBar */}
+        <div className="ide-header">
+          <ProjectSearchBar onProjectSelected={setSelectedProject} />
+        </div>
+        
+        {/* Content Area */}
+        <div className="ide-content">
+          {selectedProject ? (
+            <ProjectReviewPanel 
+              project={selectedProject} 
+              onClose={() => setSelectedProject(null)} 
+            />
+          ) : (
+            children
+          )}
+        </div>
       </div>
     </div>
   );

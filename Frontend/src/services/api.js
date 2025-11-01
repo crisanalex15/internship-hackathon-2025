@@ -8,6 +8,11 @@ const api = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
+  maxRedirects: 0, // Don't follow redirects automatically - treat 302 as error
+  validateStatus: (status) => {
+    // Treat 2xx as success, everything else as error (including 302)
+    return status >= 200 && status < 300;
+  },
 });
 
 // JWT Token Management
@@ -32,12 +37,62 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+// Custom error class pentru erori de autentificare
+export class AuthenticationError extends Error {
+  constructor(message = "Autentificare necesară") {
+    super(message);
+    this.name = "AuthenticationError";
+    this.isAuthError = true;
+  }
+}
+
 // Response interceptor - gestionează refresh token și erorile
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
 
+    // Handle 302 redirect (authentication required)
+    if (error.response?.status === 302 && !originalRequest._retry) {
+      originalRequest._retry = true;
+
+      const refreshToken = getRefreshToken();
+      if (refreshToken) {
+        try {
+          const response = await axios.post(
+            `${API_BASE_URL}/auth/refresh-token`,
+            {
+              token: getToken(),
+              refreshToken: refreshToken,
+            }
+          );
+
+          const { token: newToken, refreshToken: newRefreshToken } =
+            response.data;
+          setTokens(newToken, newRefreshToken);
+
+          // Retry original request cu noul token
+          originalRequest.headers.Authorization = `Bearer ${newToken}`;
+          return api(originalRequest);
+        } catch (refreshError) {
+          // Refresh token invalid sau expirat
+          clearTokens();
+          // Nu redirectăm automat - lasă componentele să gestioneze
+          return Promise.reject(
+            new AuthenticationError("Sesiunea a expirat. Te rog autentifică-te din nou.")
+          );
+        }
+      } else {
+        // Nu există refresh token
+        clearTokens();
+        // Nu redirectăm automat - lasă componentele să gestioneze
+        return Promise.reject(
+          new AuthenticationError("Autentificare necesară. Te rog autentifică-te pentru a continua.")
+        );
+      }
+    }
+
+    // Handle 401 Unauthorized
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
 
@@ -62,13 +117,18 @@ api.interceptors.response.use(
         } catch (refreshError) {
           // Refresh token invalid sau expirat
           clearTokens();
-          window.location.href = "/login";
-          return Promise.reject(refreshError);
+          // Nu redirectăm automat - lasă componentele să gestioneze
+          return Promise.reject(
+            new AuthenticationError("Sesiunea a expirat. Te rog autentifică-te din nou.")
+          );
         }
       } else {
         // Nu există refresh token
         clearTokens();
-        window.location.href = "/login";
+        // Nu redirectăm automat - lasă componentele să gestioneze
+        return Promise.reject(
+          new AuthenticationError("Autentificare necesară. Te rog autentifică-te pentru a continua.")
+        );
       }
     }
 
@@ -97,6 +157,9 @@ export const socialAuthApi = {
   },
   getProviders: () => api.get("/socialauthtest/providers"),
 };
+
+// Export instanța configurată de axios
+export { api };
 
 // Export token management functions
 export { getToken, getRefreshToken, setTokens, clearTokens };

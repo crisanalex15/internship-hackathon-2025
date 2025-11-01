@@ -1,0 +1,137 @@
+warning: in the working copy of 'Frontend/src/App.jsx', LF will be replaced by CRLF the next time Git touches it
+[1mdiff --git a/Backend/App_Data/Backend.db-wal b/Backend/App_Data/Backend.db-wal[m
+[1mindex 6054563..d46ee39 100644[m
+Binary files a/Backend/App_Data/Backend.db-wal and b/Backend/App_Data/Backend.db-wal differ
+[1mdiff --git a/Backend/Areas/Identity/Data/AuthDbContext.cs b/Backend/Areas/Identity/Data/AuthDbContext.cs[m
+[1mindex 0971b97..baa8b89 100644[m
+[1m--- a/Backend/Areas/Identity/Data/AuthDbContext.cs[m
+[1m+++ b/Backend/Areas/Identity/Data/AuthDbContext.cs[m
+[36m@@ -15,6 +15,10 @@[m [mpublic class AuthDbContext : IdentityDbContext<ApplicationUser>[m
+     // DbSet pentru AI Code Review[m
+     public DbSet<ReviewHistory> ReviewHistories { get; set; }[m
+ [m
+[32m+[m[32m    // DbSet pentru Proiecte[m
+[32m+[m[32m    public DbSet<Project> Projects { get; set; }[m
+[32m+[m[32m    public DbSet<ProjectFile> ProjectFiles { get; set; }[m
+[32m+[m
+     protected override void OnModelCreating(ModelBuilder builder)[m
+     {[m
+         base.OnModelCreating(builder);[m
+[1mdiff --git a/Backend/Controllers/CodeFileController.cs b/Backend/Controllers/CodeFileController.cs[m
+[1mindex eeea1d9..5727c45 100644[m
+[1m--- a/Backend/Controllers/CodeFileController.cs[m
+[1m+++ b/Backend/Controllers/CodeFileController.cs[m
+[36m@@ -4,7 +4,6 @@[m [musing System.Security.Claims;[m
+ [m
+ namespace Backend.Controllers[m
+ {[m
+[31m-    [Authorize][m
+     [ApiController][m
+     [Route("api/[controller]")][m
+     public class CodeFileController : ControllerBase[m
+[36m@@ -26,7 +25,8 @@[m [mnamespace Backend.Controllers[m
+ [m
+         private string GetUserTempDir()[m
+         {[m
+[31m-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "anonymous";[m
+[32m+[m[32m            // Try to get authenticated user ID, fallback to anonymous if not authenticated[m
+[32m+[m[32m            var userId = User?.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "anonymous";[m
+             var userDir = Path.Combine(_tempDirectory, userId);[m
+             [m
+             if (!Directory.Exists(userDir))[m
+[36m@@ -298,55 +298,209 @@[m [mnamespace Backend.Controllers[m
+         {[m
+             try[m
+             {[m
+[31m-                // Parse patch lines[m
+[32m+[m[32m                _logger.LogInformation("Applying patch to content (length: {ContentLength})", content.Length);[m
+[32m+[m[32m                _logger.LogDebug("Patch content: {Patch}", patch);[m
+[32m+[m[41m                [m
+[32m+[m[32m                var contentLines = content.Split('\n').ToList();[m
+                 var patchLines = patch.Split('\n');[m
+[31m-                var linesToRemove = new List<string>();[m
+[31m-                var linesToAdd = new List<string>();[m
+                 [m
+[31m-                foreach (var line in patchLines)[m
+[32m+[m[32m                int currentContentLine = 0;[m
+[32m+[m[32m                int patchLineIndex = 0;[m
+[32m+[m[41m                [m
+[32m+[m[32m                // Skip header lines (---, +++, diff, index)[m
+[32m+[m[32m                while (patchLineIndex < patchLines.Length &&[m[41m [m
+[32m+[m[32m                       (patchLines[patchLineIndex].StartsWith("---") ||[m[41m [m
+[32m+[m[32m                        patchLines[patchLineIndex].StartsWith("+++") ||[m
+[32m+[m[32m                        patchLines[patchLineIndex].StartsWith("diff") ||[m
+[32m+[m[32m                        patchLines[patchLineIndex].StartsWith("index")))[m
+                 {[m
+[31m-                    if (line.StartsWith('-') && !line.StartsWith("---"))[m
+[32m+[m[32m                    patchLineIndex++;[m
+[32m+[m[32m                }[m
+[32m+[m[41m                [m
+[32m+[m[32m                // Find @@ header to get line numbers[m
+[32m+[m[32m                int? startLine = null;[m
+[32m+[m[32m                while (patchLineIndex < patchLines.Length && !patchLines[patchLineIndex].StartsWith("@@"))[m
+[32m+[m[32m                {[m
+[32m+[m[32m                    patchLineIndex++;[m
+[32m+[m[32m                }[m
+[32m+[m[41m                [m
+[32m+[m[32m                if (patchLineIndex < patchLines.Length)[m
+[32m+[m[32m                {[m
+[32m+[m[32m                    // Parse @@ -old_start,old_count +new_start,new_count @@[m
+[32m+[m[32m                    var headerMatch = System.Text.RegularExpressions.Regex.Match([m
+[32m+[m[32m                        patchLines[patchLineIndex],[m
+[32m+[m[32m                        @"@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@"[m
+[32m+[m[32m                    );[m
+[32m+[m[41m                    [m
+[32m+[m[32m                    if (headerMatch.Success)[m
+                     {[m
+[31m-                        linesToRemove.Add(line.Substring(1));[m
+[32m+[m[32m                        // old_start is 1-indexed in git diff, but we use 0-indexed lists[m
+[32m+[m[32m                        startLine = int.Parse(headerMatch.Groups[1].Value) - 1;[m
+[32m+[m[32m                        _logger.LogInformation("Found patch start line: {StartLine} (1-indexed: {OneIndexed})",[m[41m [m
+[32m+[m[32m                            startLine, startLine + 1);[m
+                     }[m
+[31m-                    else if (line.StartsWith('+') && !line.StartsWith("+++"))[m
+[32m+[m[32m                    patchLineIndex++;[m
+[32m+[m[32m                }[m
+[32m+[m[41m                [m
+[32m+[m[32m                // If no @@ header, try simple approach[m
+[32m+[m[32m                if (startLine == null)[m
+[32m+[m[32m                {[m
+[32m+[m[32m                    _logger.LogWarning("No @@ header found in patch, using simple replacement");[m
+[32m+[m[41m                    [m
+[32m+[m[32m                    // Extract old and new code blocks[m
+[32m+[m[32m                    var oldLines = new List<string>();[m
+[32m+[m[32m                    var newLines = new List<string>();[m
+[32m+[m[41m                    [m
+[32m+[m[32m                    foreach (var line in patchLines)[m
+                     {[m
+[31m-                        linesToAdd.Add(line.Substring(1));[m
+[32m+[m[32m                        if (line.StartsWith('-') && !line.StartsWith("---"))[m
+[32m+[m[32m                        {[m
+[32m+[m[32m                            oldLines.Add(line.Substring(1));[m
+[32m+[m[32m                        }[m
+[32m+[m[32m                        else if (line.StartsWith('+') && !line.StartsWith("+++"))[m
+[32m+[m[32m                        {[m
+[32m+[m[32m                            newLines.Add(line.Substring(1));[m
+[32m+[m[32m                        }[m
+                     }[m
+[32m+[m[41m                    [m
+[32m+[m[32m                    if (oldLines.Count == 0 && newLines.Count > 0)[m
+[32m+[m[32m                    {[m
+[32m+[m[32m                        // Pure addition[m
+[32m+[m[32m                        var newCode = string.Join("\n", newLines);[m
+[32m+[m[32m                        return content + (content.EndsWith("\n") ? "" : "\n") + newCode;[m
+[32m+[m[32m                    }[m
+[32m+[m[41m                    [m
+[32m+[m[32m                    // Try to find and replace the old code block[m
+[32m+[m[32m                    var oldCodeBlock = string.Join("\n", oldLines);[m
+[32m+[m[32m                    var newCodeBlock = string.Join("\n", newLines);[m
+[32m+[m[41m                    [m
+[32m+[m[32m                    if (content.Contains(oldCodeBlock))[m
+[32m+[m[32m                    {[m
+[32m+[m[32m                        return content.Replace(oldCodeBlock, newCodeBlock);[m
+[32m+[m[32m                    }[m
+[32m+[m[41m                    [m
+[32m+[m[32m                    // Try with exact line matches[m
+[32m+[m[32m                    var contentLinesList = contentLines;[m
+[32m+[m[32m                    for (int i = 0; i <= contentLinesList.Count - oldLines.Count;

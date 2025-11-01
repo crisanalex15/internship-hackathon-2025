@@ -18,7 +18,7 @@ import {
 } from "@tabler/icons-react";
 import "./ApplyFixModal.css";
 
-const ApplyFixModal = ({ opened, onClose, finding, onAccept, onReject }) => {
+const ApplyFixModal = ({ opened, onClose, finding, onAccept, onReject, originalCode }) => {
   const [applying, setApplying] = useState(false);
 
   const handleAccept = async () => {
@@ -43,26 +43,108 @@ const ApplyFixModal = ({ opened, onClose, finding, onAccept, onReject }) => {
   if (!finding) return null;
 
   // Parse patch to extract old and new code
-  const parsePatch = (patch) => {
-    const lines = patch.split('\n');
-    const oldLines = [];
-    const newLines = [];
+  const parsePatch = (patch, originalCodeText) => {
+    if (!patch || !patch.trim()) {
+      return { oldCode: '', newCode: '', noChanges: true, hasChanges: false };
+    }
 
-    lines.forEach(line => {
+    // Check if patch is in unified diff format (has - or + lines)
+    const hasDiffFormat = patch.includes('\n-') || patch.includes('\n+') || 
+                          patch.startsWith('-') || patch.startsWith('+');
+
+    if (!hasDiffFormat) {
+      // Patch is just the corrected code, not a unified diff
+      // We need to extract the original code from the editor
+      if (originalCodeText && finding.lineStart && finding.lineEnd) {
+        const codeLines = originalCodeText.split('\n');
+        const startIdx = Math.max(0, finding.lineStart - 1);
+        const endIdx = Math.min(codeLines.length, finding.lineEnd);
+        const originalLines = codeLines.slice(startIdx, endIdx);
+        const oldCode = originalLines.join('\n').trim();
+        const newCode = patch.trim();
+        
+        return {
+          oldCode: oldCode || 'Fără modificări',
+          newCode: newCode || 'Fără modificări',
+          noChanges: oldCode === newCode,
+          hasChanges: oldCode !== newCode
+        };
+      } else {
+        // Can't extract original code, so we can't determine changes
+        return {
+          oldCode: 'Nu se poate determina codul original',
+          newCode: patch.trim(),
+          noChanges: false, // Assume there are changes if we can't verify
+          hasChanges: true
+        };
+      }
+    }
+
+    // Patch is in unified diff format - parse normally
+    const lines = patch.split('\n');
+    const oldLines = []; // Lines marked with -
+    const newLines = []; // Lines marked with +
+    let hasAdd = false;
+    let hasRemove = false;
+
+    lines.forEach((line) => {
+      // Skip headers
+      if (line.startsWith('diff') || 
+          line.startsWith('index') || 
+          line.startsWith('---') || 
+          line.startsWith('+++')) {
+        return;
+      }
+      
+      // Skip @@ headers (but note we're in a patch block)
+      if (line.startsWith('@@')) {
+        return;
+      }
+
+      // Extract removed lines (marked with -)
       if (line.startsWith('-') && !line.startsWith('---')) {
         oldLines.push(line.substring(1));
-      } else if (line.startsWith('+') && !line.startsWith('+++')) {
+        hasRemove = true;
+      } 
+      // Extract added lines (marked with +)
+      else if (line.startsWith('+') && !line.startsWith('+++')) {
         newLines.push(line.substring(1));
+        hasAdd = true;
+      } 
+      // Context lines (marked with space) - we can include them for display, but not for change detection
+      else if (line.startsWith(' ') || line.trim() === '') {
+        // Skip context lines - they cause false positives
       }
     });
 
-    return {
-      oldCode: oldLines.join('\n'),
-      newCode: newLines.join('\n'),
+    const oldCode = oldLines.join('\n').trim();
+    const newCode = newLines.join('\n').trim();
+
+    // If there are + or - lines, there ARE changes (regardless of content comparison)
+    // Only no changes if: no + and no - lines at all
+    const hasChanges = hasAdd || hasRemove;
+    const noChanges = !hasChanges;
+
+    return { 
+      oldCode: oldCode || 'Fără modificări', 
+      newCode: newCode || 'Fără modificări', 
+      noChanges, 
+      hasChanges 
     };
   };
 
-  const { oldCode, newCode } = finding.patch ? parsePatch(finding.patch) : { oldCode: '', newCode: '' };
+  const { oldCode, newCode, noChanges, hasChanges } = finding.patch
+    ? parsePatch(finding.patch, originalCode)
+    : { oldCode: '', newCode: '', noChanges: true, hasChanges: false };
+  
+  // Debug logging
+  if (finding.patch) {
+    console.log('Patch content:', finding.patch);
+    console.log('Original code available:', !!originalCode);
+    console.log('Parsed - oldCode:', oldCode);
+    console.log('Parsed - newCode:', newCode);
+    console.log('hasChanges:', hasChanges, 'noChanges:', noChanges);
+  }
 
   const getSeverityColor = (severity) => {
     switch (severity?.toLowerCase()) {
@@ -101,9 +183,9 @@ const ApplyFixModal = ({ opened, onClose, finding, onAccept, onReject }) => {
             </Text>
           </Group>
           <Text size="sm" weight={500}>
-            {finding.message}
+            {noChanges ? "Nu există modificări propuse pentru acest fix." : finding.message}
           </Text>
-          {finding.suggestion && (
+          {finding.suggestion && !noChanges && (
             <Text size="sm" color="dimmed" mt="xs">
               💡 {finding.suggestion}
             </Text>
@@ -122,7 +204,7 @@ const ApplyFixModal = ({ opened, onClose, finding, onAccept, onReject }) => {
             <Paper p="md" withBorder className="code-paper old">
               <ScrollArea style={{ maxHeight: 200 }}>
                 <Code block className="diff-code">
-                  {oldCode || "No changes to remove"}
+                  {oldCode}
                 </Code>
               </ScrollArea>
             </Paper>
@@ -142,7 +224,7 @@ const ApplyFixModal = ({ opened, onClose, finding, onAccept, onReject }) => {
             <Paper p="md" withBorder className="code-paper new">
               <ScrollArea style={{ maxHeight: 200 }}>
                 <Code block className="diff-code">
-                  {newCode || "No changes to add"}
+                  {newCode}
                 </Code>
               </ScrollArea>
             </Paper>
@@ -172,8 +254,9 @@ const ApplyFixModal = ({ opened, onClose, finding, onAccept, onReject }) => {
               onClick={handleAccept}
               loading={applying}
               className="accept-button"
+              disabled={noChanges}
             >
-              Acceptă & Aplică
+              {noChanges ? "Fără schimbări" : "Acceptă & Aplică"}
             </Button>
           </Group>
         </Group>

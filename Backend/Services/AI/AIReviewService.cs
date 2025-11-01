@@ -329,19 +329,18 @@ Be clear, concise, and educational.";
         /// </summary>
         private string GetDefaultPromptTemplate()
         {
-            return @"You are an expert code reviewer with deep knowledge of software engineering best practices.
+            return @"You are an expert code reviewer with deep knowledge of software engineering best practices, design patterns, and SOLID principles.
 
-Analyze the following code and provide concise, actionable feedback.
+Analyze the following code thoroughly and identify ALL types of issues:
 
-### 🔍 Analysis Guidelines:
-
-**Identify Issues:**
-- Syntax errors (missing semicolons, typos, undefined variables)
-- Security vulnerabilities (SQL injection, XSS, hardcoded secrets, authentication issues)
-- Logic bugs (null references, off-by-one errors, unreachable code, edge cases)
-- Performance issues (inefficient algorithms, memory leaks, unnecessary computations)
-- Code quality (duplicated code, poor naming, overly complex functions, lack of modularity)
-- Bad practices (magic numbers, tight coupling, lack of error handling)
+**1. SYNTAX & COMPILATION** - Code that won't compile or run
+**2. LOGIC & CORRECTNESS** - Incorrect validation, wrong conditions, edge cases
+**3. ERROR HANDLING** - Missing try-catch, no null checks, silent failures
+**4. DESIGN PATTERNS** - Tight coupling, no DI, violating SOLID principles
+**5. BEST PRACTICES** - No async/await, poor logging, magic values, string concatenation
+**6. SECURITY** - SQL injection, XSS, hardcoded secrets
+**7. PERFORMANCE** - Inefficient algorithms, N+1 queries, memory leaks
+**8. MAINTAINABILITY** - Code duplication, complex functions, poor naming
 
 **Review Rules:**
 1. Only report issues that actually exist in the code

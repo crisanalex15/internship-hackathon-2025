@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Stack,
   Text,
@@ -29,7 +29,7 @@ import FindingComments from "./FindingComments";
 import ApplyFixModal from "./ApplyFixModal";
 import "./ModernFindingsList.css";
 
-const FindingItem = ({ finding, index, onApplyFix, isFixApplied }) => {
+const FindingItem = ({ finding, index, onApplyFix, isFixApplied, originalCode }) => {
   const [expanded, setExpanded] = useState(false);
   const [explaining, setExplaining] = useState(false);
   const [explanation, setExplanation] = useState(null);
@@ -37,6 +37,12 @@ const FindingItem = ({ finding, index, onApplyFix, isFixApplied }) => {
   const [fixResult, setFixResult] = useState(null);
   const [copied, setCopied] = useState(false);
   const [showComments, setShowComments] = useState(false);
+
+  // Reset fixResult when finding changes (new review)
+  useEffect(() => {
+    setFixResult(null);
+    setExplanation(null);
+  }, [finding]);
 
   const getSeverityColor = (severity) => {
     switch (severity?.toLowerCase()) {
@@ -208,16 +214,24 @@ const FindingItem = ({ finding, index, onApplyFix, isFixApplied }) => {
 
   const handleAcceptFix = async (finding) => {
     if (onApplyFix) {
-      const success = onApplyFix(finding);
-      if (success) {
-        setFixResult({
-          success: true,
-          message: "✅ Fix aplicat cu succes în editor!",
-        });
-      } else {
+      try {
+        const success = await onApplyFix(finding);
+        if (success) {
+          setFixResult({
+            success: true,
+            message: "✅ Fix aplicat cu succes în editor!",
+          });
+        } else {
+          setFixResult({
+            success: false,
+            message: "❌ Nu s-a putut aplica fix-ul automat. Codul poate fi deja modificat.",
+          });
+        }
+      } catch (error) {
+        console.error("Error in handleAcceptFix:", error);
         setFixResult({
           success: false,
-          message: "❌ Nu s-a putut aplica fix-ul automat. Codul poate fi deja modificat.",
+          message: `❌ Eroare: ${error.message || "Eroare necunoscută"}`,
         });
       }
     }
@@ -431,16 +445,20 @@ const FindingItem = ({ finding, index, onApplyFix, isFixApplied }) => {
       {/* Apply Fix Modal */}
       <ApplyFixModal
         opened={fixModalOpened}
-        onClose={() => setFixModalOpened(false)}
+        onClose={() => {
+          setFixModalOpened(false);
+          // Don't reset fixResult here - keep it to show if fix was applied
+        }}
         finding={finding}
         onAccept={handleAcceptFix}
         onReject={handleRejectFix}
+        originalCode={originalCode}
       />
     </div>
   );
 };
 
-const ModernFindingsList = ({ findings, onApplyFix, appliedFixes = new Set() }) => {
+const ModernFindingsList = ({ findings, onApplyFix, appliedFixes = new Set(), originalCode }) => {
   if (!findings || findings.length === 0) {
     return null;
   }
@@ -492,15 +510,16 @@ const ModernFindingsList = ({ findings, onApplyFix, appliedFixes = new Set() }) 
       </div>
 
       <Stack spacing={12} className="findings-stack">
-        {sortedFindings.map((finding, index) => (
-          <FindingItem 
-            key={index} 
-            finding={finding} 
-            index={index}
-            onApplyFix={onApplyFix}
-            isFixApplied={appliedFixes.has(finding.lineStart)}
-          />
-        ))}
+              {sortedFindings.map((finding, index) => (
+                <FindingItem 
+                  key={index} 
+                  finding={finding} 
+                  index={index}
+                  onApplyFix={onApplyFix}
+                  isFixApplied={appliedFixes.has(finding.lineStart)}
+                  originalCode={originalCode}
+                />
+              ))}
       </Stack>
     </div>
   );

@@ -1,0 +1,18 @@
+.create-project-modal .mantine-Modal-body {
+  padding: 24px;
+}
+
+.files-section {
+  background: var(--bg-secondary);
+}
+
+.file-item {
+  background: var(--bg-primary);
+  transition: all 0.2s ease;
+}
+
+.file-item:hover {
+  background: var(--bg-elevated);
+  border-color: var(--accent-color);
+}
+

@@ -1,0 +1,32 @@
+.project-search-container {
+  width: 100%;
+}
+
+.search-bar-paper {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  transition: all 0.3s ease;
+}
+
+.search-bar-paper:focus-within {
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 3px rgba(var(--accent-color-rgb), 0.1);
+}
+
+.search-results {
+  background: var(--bg-secondary);
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+.project-result-item {
+  transition: all 0.2s ease;
+  background: var(--bg-primary);
+}
+
+.project-result-item:hover {
+  background: var(--bg-elevated);
+  transform: translateX(4px);
+  border-color: var(--accent-color);
+}
+

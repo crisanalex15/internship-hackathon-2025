@@ -1,0 +1,26 @@
+.my-projects-panel {
+  width: 100%;
+}
+
+.projects-header {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+}
+
+.empty-state {
+  background: var(--bg-secondary);
+  text-align: center;
+}
+
+.project-card {
+  background: var(--bg-primary);
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.project-card:hover {
+  background: var(--bg-elevated);
+  border-color: var(--accent-color);
+  transform: translateX(4px);
+}
+

@@ -15,6 +15,10 @@ public class AuthDbContext : IdentityDbContext<ApplicationUser>
     // DbSet pentru AI Code Review
     public DbSet<ReviewHistory> ReviewHistories { get; set; }
 
+    // DbSet pentru Proiecte
+    public DbSet<Project> Projects { get; set; }
+    public DbSet<ProjectFile> ProjectFiles { get; set; }
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);

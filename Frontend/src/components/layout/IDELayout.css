@@ -170,11 +170,19 @@
   background: var(--bg-primary);
 }
 
+.ide-header {
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  flex-shrink: 0;
+}
+
 .ide-content {
   flex: 1;
   overflow: auto;
   position: relative;
   animation: fadeIn 0.4s ease-out;
+  padding: 24px;
 }
 
 @keyframes fadeIn {

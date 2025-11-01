@@ -13,6 +13,7 @@ import ViewTransition from "./components/layout/ViewTransition";
 import ModernCodeReviewPanel from "./components/review/ModernCodeReviewPanel";
 import ReviewHistory from "./components/review/ReviewHistory";
 import PreCommitPanel from "./components/review/PreCommitPanel";
+import MyProjectsPanel from "./components/projects/MyProjectsPanel";
 import { useState } from "react";
 
 const queryClient = new QueryClient();
@@ -28,6 +29,7 @@ const IDEContainer = () => {
         {activeView === "history" && <ReviewHistory />}
         {activeView === "diff" && <ModernCodeReviewPanel />}
         {activeView === "precommit" && <PreCommitPanel />}
+        {activeView === "projects" && <MyProjectsPanel />}
       </ViewTransition>
     </IDELayout>
   );
