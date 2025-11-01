@@ -1,0 +1,519 @@
+@model List<Backend.Controllers.Admin.UserManagementViewModel>
+@{
+    ViewData["Title"] = "User Management";
+}
+
+<style>
+    .user-card {
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        transition: transform 0.3s ease;
+        border-left: 4px solid #667eea;
+        margin-bottom: 1rem;
+    }
+    .user-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+    }
+    .user-avatar {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 1.5rem;
+        font-weight: bold;
+    }
+    .status-badge {
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 600;
+    }
+    .status-verified {
+        background-color: #d4edda;
+        color: #155724;
+    }
+    .status-unverified {
+        background-color: #f8d7da;
+        color: #721c24;
+    }
+    .role-badge {
+        background: linear-gradient(45deg, #ffc107, #fd7e14);
+        color: white;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 600;
+    }
+    .action-btn {
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        border: none;
+        transition: all 0.3s ease;
+        margin: 2px;
+    }
+    .btn-admin {
+        background: linear-gradient(45deg, #ffc107, #fd7e14);
+        color: white;
+    }
+    .btn-admin:hover {
+        background: linear-gradient(45deg, #e0a800, #e55a00);
+        color: white;
+    }
+    .btn-verify {
+        background: linear-gradient(45deg, #28a745, #20c997);
+        color: white;
+    }
+    .btn-verify:hover {
+        background: linear-gradient(45deg, #218838, #1ea085);
+        color: white;
+    }
+    .btn-delete {
+        background: linear-gradient(45deg, #dc3545, #c82333);
+        color: white;
+    }
+    .btn-delete:hover {
+        background: linear-gradient(45deg, #c82333, #a71e2a);
+        color: white;
+    }
+    .btn-reset {
+        background: linear-gradient(45deg, #6f42c1, #5a32a3);
+        color: white;
+    }
+    .btn-reset:hover {
+        background: linear-gradient(45deg, #5a32a3, #4a2a8a);
+        color: white;
+    }
+    .stats-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 15px;
+        color: white;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+    }
+</style>
+
+<div class="container-fluid">
+    <!-- Header with Statistics -->
+    <div class="stats-header">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h2 class="mb-2"><i class="fas fa-users me-2"></i>User Management</h2>
+                <p class="mb-0">Manage your application users and their permissions</p>
+            </div>
+            <div class="col-md-4">
+                <div class="row text-center">
+                    <div class="col-4">
+                        <div class="h4 mb-0">@ViewBag.TotalUsers</div>
+                        <small>Total Users</small>
+                    </div>
+                    <div class="col-4">
+                        <div class="h4 mb-0">@ViewBag.AdminUsers</div>
+                        <small>Admins</small>
+                    </div>
+                    <div class="col-4">
+                        <div class="h4 mb-0">@ViewBag.VerifiedUsers</div>
+                        <small>Verified</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Users List -->
+    <div class="row">
+        @foreach (var userModel in Model)
+        {
+            var user = userModel.User;
+            var isAdmin = userModel.Roles.Contains("Admin");
+            var currentUser = ViewBag.CurrentUser as Backend.Areas.Identity.Data.ApplicationUser;
+            var isCurrentUser = user.Id == currentUser?.Id;
+            
+            <div class="col-md-6 col-lg-4">
+                <div class="user-card p-4">
+                    <div class="row align-items-center mb-3">
+                        <div class="col-auto">
+                            <div class="user-avatar">
+                                @(user.FirstName?.FirstOrDefault() ?? user.Email?.FirstOrDefault() ?? 'U')
+                            </div>
+                        </div>
+                        <div class="col">
+                            <h6 class="mb-1">@(user.FirstName) @(user.LastName)</h6>
+                            <small class="text-muted">@user.Email</small>
+                        </div>
+                        <div class="col-auto">
+                            <span class="status-badge @(user.IsEmailVerified ? "status-verified" : "status-unverified")">
+                                @(user.IsEmailVerified ? "Verified" : "Unverified")
+                            </span>
+                        </div>
+                    </div>
+
+                    @if (isAdmin)
+                    {
+                        <div class="mb-3">
+                            <span class="role-badge">
+                                <i class="fas fa-crown me-1"></i>Admin
+                            </span>
+                        </div>
+                    }
+
+                    <div class="row mb-3">
+                        <div class="col-6">
+                            <small class="text-muted">Created:</small><br>
+                            <small>@user.CreatedAt.ToString("MMM dd, yyyy")</small>
+                        </div>
+                        <div class="col-6">
+                            <small class="text-muted">Last Login:</small><br>
+                            <small>@(user.LastLoginAt?.ToString("MMM dd, yyyy") ?? "Never")</small>
+                        </div>
+                    </div>
+
+                    <div class="d-flex flex-wrap gap-2">
+                        @if (!isCurrentUser)
+                        {
+                            <!-- Toggle Admin Role -->
+                            <button class="action-btn btn-admin" onclick="toggleAdminRole('@user.Id', @isAdmin.ToString().ToLower())">
+                                <i class="fas fa-@(isAdmin ? "user-minus" : "crown") me-1"></i>
+                                @(isAdmin ? "Remove Admin" : "Make Admin")
+                            </button>
+
+                            <!-- Verify Email -->
+                            @if (!user.IsEmailVerified)
+                            {
+                                <button class="action-btn btn-verify" onclick="verifyEmail('@user.Id')">
+                                    <i class="fas fa-check-circle me-1"></i>Verify Email
+                                </button>
+                            }
+
+                            <!-- Send Verification Email -->
+                            @if (!user.IsEmailVerified)
+                            {
+                                <button class="action-btn btn-verify" onclick="sendVerificationEmail('@user.Id')">
+                                    <i class="fas fa-envelope me-1"></i>Send Verify Email
+                                </button>
+                            }
+
+                            <!-- Reset Password -->
+                            <button class="action-btn btn-reset" onclick="resetPassword('@user.Id')">
+                                <i class="fas fa-key me-1"></i>Reset Password
+                            </button>
+
+                            <!-- Delete User -->
+                            <button class="action-btn btn-delete" onclick="deleteUser('@user.Id')">
+                                <i class="fas fa-trash me-1"></i>Delete
+                            </button>
+                        }
+                        else
+                        {
+                            <small class="text-muted"><i class="fas fa-info-circle me-1"></i>Current User</small>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+
+    @if (!Model.Any())
+    {
+        <div class="text-center py-5">
+            <i class="fas fa-users fa-3x text-muted mb-3"></i>
+            <h5 class="text-muted">No users found</h5>
+            <p class="text-muted">Users will appear here once they register.</p>
+        </div>
+    }
+</div>
+
+<!-- Loading Modal -->
+<div class="modal fade" id="loadingModal" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-sm modal-dialog-centered">
+        <div class="modal-content border-0">
+            <div class="modal-body text-center py-4">
+                <div class="spinner-border text-primary mb-3" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <div>Processing...</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Confirmation Modal -->
+<div class="modal fade" id="confirmModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header border-0 pb-0" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                <h5 class="modal-title text-white">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <span id="confirmTitle">Confirmation</span>
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body py-4">
+                <p id="confirmMessage" class="mb-0"></p>
+            </div>
+            <div class="modal-footer border-0">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-1"></i>Cancel
+                </button>
+                <button type="button" class="btn btn-primary" id="confirmActionBtn" style="background: linear-gradient(45deg, #667eea, #764ba2); border: none;">
+                    <i class="fas fa-check me-1"></i>Confirm
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Success/Error Modal -->
+<div class="modal fade" id="messageModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header border-0 pb-0" id="messageModalHeader">
+                <h5 class="modal-title text-white">
+                    <i id="messageIcon" class="fas fa-check-circle me-2"></i>
+                    <span id="messageTitle">Success</span>
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body py-4">
+                <p id="messageText" class="mb-0"></p>
+            </div>
+            <div class="modal-footer border-0">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-1"></i>Close
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function showLoading() {
+        var modal = new bootstrap.Modal(document.getElementById('loadingModal'));
+        modal.show();
+    }
+
+    function hideLoading() {
+        var modal = bootstrap.Modal.getInstance(document.getElementById('loadingModal'));
+        if (modal) modal.hide();
+    }
+
+    function showConfirmModal(title, message, onConfirm) {
+        document.getElementById('confirmTitle').textContent = title;
+        document.getElementById('confirmMessage').textContent = message;
+        
+        var modal = new bootstrap.Modal(document.getElementById('confirmModal'));
+        var confirmBtn = document.getElementById('confirmActionBtn');
+        
+        // Remove old event listeners
+        var newConfirmBtn = confirmBtn.cloneNode(true);
+        confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
+        
+        // Add new event listener
+        newConfirmBtn.addEventListener('click', function() {
+            modal.hide();
+            onConfirm();
+        });
+        
+        modal.show();
+    }
+
+    function showMessage(type, title, message, onClose) {
+        var modalHeader = document.getElementById('messageModalHeader');
+        var icon = document.getElementById('messageIcon');
+        var titleEl = document.getElementById('messageTitle');
+        var messageEl = document.getElementById('messageText');
+        
+        titleEl.textContent = title;
+        messageEl.textContent = message;
+        
+        if (type === 'success') {
+            modalHeader.style.background = 'linear-gradient(135deg, #28a745 0%, #20c997 100%)';
+            icon.className = 'fas fa-check-circle me-2';
+        } else {
+            modalHeader.style.background = 'linear-gradient(135deg, #dc3545 0%, #c82333 100%)';
+            icon.className = 'fas fa-exclamation-circle me-2';
+        }
+        
+        var modal = new bootstrap.Modal(document.getElementById('messageModal'));
+        modal.show();
+        
+        if (onClose) {
+            document.getElementById('messageModal').addEventListener('hidden.bs.modal', onClose, { once: true });
+        }
+    }
+
+    function toggleAdminRole(userId, isAdmin) {
+        showLoading();
+        fetch('/UserManagement/ToggleAdminRole', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ userId: userId })
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            hideLoading();
+            if (data.success) {
+                location.reload();
+            } else {
+                showMessage('error', 'Eroare', data.message);
+            }
+        })
+        .catch(error => {
+            hideLoading();
+            console.error('Error:', error);
+            showMessage('error', 'Eroare', error.message);
+        });
+    }
+
+    function verifyEmail(userId) {
+        showConfirmModal(
+            'Verificare Email',
+            'Ești sigur că vrei să verifici manual email-ul acestui utilizator?',
+            function() {
+                showLoading();
+                fetch('/UserManagement/VerifyEmail', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ userId: userId })
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    hideLoading();
+                    if (data.success) {
+                        location.reload();
+                    } else {
+                        showMessage('error', 'Eroare', data.message);
+                    }
+                })
+                .catch(error => {
+                    hideLoading();
+                    console.error('Error:', error);
+                    showMessage('error', 'Eroare', error.message);
+                });
+            }
+        );
+    }
+
+    function sendVerificationEmail(userId) {
+        showLoading();
+        fetch('/UserManagement/SendVerificationEmail', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ userId: userId })
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            hideLoading();
+            if (data.success) {
+                showMessage('success', 'Succes', 'Email-ul de verificare a fost trimis cu succes!');
+            } else {
+                showMessage('error', 'Eroare', data.message);
+            }
+        })
+        .catch(error => {
+            hideLoading();
+            console.error('Error:', error);
+            showMessage('error', 'Eroare', error.message);
+        });
+    }
+
+    function resetPassword(userId) {
+        showConfirmModal(
+            'Resetare Parolă',
+            'Ești sigur că vrei să trimiți un email de resetare parolă acestui utilizator?',
+            function() {
+                showLoading();
+                fetch('/UserManagement/ResetPassword', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ userId: userId })
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    hideLoading();
+                    if (data.success) {
+                        showMessage('success', 'Succes', 'Email-ul de resetare parolă a fost trimis cu succes!');
+                    } else {
+                        showMessage('error', 'Eroare', data.message);
+                    }
+                })
+                .catch(error => {
+                    hideLoading();
+                    console.error('Error:', error);
+                    showMessage('error', 'Eroare', error.message);
+                });
+            }
+        );
+    }
+
+    function deleteUser(userId) {
+        showConfirmModal(
+            'Ștergere Utilizator',
+            'Ești sigur că vrei să ștergi acest utilizator? Această acțiune nu poate fi anulată!',
+            function() {
+                showLoading();
+                fetch('/UserManagement/DeleteUser', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ userId: userId })
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    hideLoading();
+                    if (data.success) {
+                        location.reload();
+                    } else {
+                        showMessage('error', 'Eroare', data.message);
+                    }
+                })
+                .catch(error => {
+                    hideLoading();
+                    console.error('Error:', error);
+                    showMessage('error', 'Eroare', error.message);
+                });
+            }
+        );
+    }
+</script>

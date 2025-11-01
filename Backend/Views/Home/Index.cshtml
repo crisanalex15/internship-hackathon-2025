@@ -1,0 +1,575 @@
+﻿@{
+    ViewData["Title"] = "Admin Dashboard";
+    var currentUser = ViewBag.CurrentUser as Backend.Areas.Identity.Data.ApplicationUser;
+    var userRoles = ViewBag.UserRoles as List<string>;
+}
+
+<style>
+    .dashboard-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        border-radius: 15px;
+        color: white;
+        transition: transform 0.3s ease;
+    }
+    .dashboard-card:hover {
+        transform: translateY(-5px);
+    }
+    .stat-card {
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        transition: transform 0.3s ease;
+        border-left: 4px solid #667eea;
+    }
+    .stat-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+    }
+    .stat-number {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: #667eea;
+    }
+    .welcome-section {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 20px;
+        color: white;
+        padding: 2rem;
+        margin-bottom: 2rem;
+    }
+    .btn-modern {
+        background: linear-gradient(45deg, #667eea, #764ba2);
+        border: none;
+        border-radius: 25px;
+        padding: 12px 30px;
+        color: white;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        display: inline-block;
+    }
+    .btn-modern:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+        color: white;
+    }
+    .chart-container {
+        position: relative;
+        height: 280px;
+        width: 100%;
+        overflow: hidden;
+    }
+    .chart-container canvas {
+        max-height: 280px !important;
+    }
+    #chartsContainer {
+        transition: opacity 0.3s ease;
+    }
+    .filter-btn {
+        padding: 6px 16px;
+        border-radius: 20px;
+        border: 2px solid #667eea;
+        background: white;
+        color: #667eea;
+        font-size: 0.85rem;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+    .filter-btn:hover {
+        background: #667eea;
+        color: white;
+        transform: translateY(-2px);
+    }
+    .filter-btn.active {
+        background: linear-gradient(45deg, #667eea, #764ba2);
+        color: white;
+        border-color: #764ba2;
+    }
+</style>
+
+<div class="container-fluid">
+    <!-- Welcome Section -->
+    <div class="welcome-section">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h1 class="display-4 mb-3">Welcome back, @(currentUser?.FirstName ?? "Admin")!</h1>
+                <p class="lead mb-0">Manage your authentication system with ease</p>
+                <small class="opacity-75">User ID: @ViewData["UserID"] | Roles: @string.Join(", ", userRoles ?? new List<string>())</small>
+            </div>
+            <div class="col-md-4 text-end">
+                <div class="d-flex flex-column gap-2">
+                    <a asp-controller="Home" asp-action="GetToApi" class="btn-modern">
+                        <i class="fas fa-code me-2"></i>API Documentation
+                    </a>
+                    <a asp-controller="UserManagement" asp-action="Index" class="btn-modern">
+                        <i class="fas fa-users-cog me-2"></i>Manage Users
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-3">
+            <div class="stat-card p-4">
+                <div class="d-flex align-items-center">
+                    <div class="flex-grow-1">
+                        <h6 class="text-muted mb-1">Total Users</h6>
+                        <div class="stat-number">@ViewBag.TotalUsers</div>
+                    </div>
+                    <div class="text-primary">
+                        <i class="fas fa-users fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card p-4">
+                <div class="d-flex align-items-center">
+                    <div class="flex-grow-1">
+                        <h6 class="text-muted mb-1">Verified Users</h6>
+                        <div class="stat-number">@ViewBag.VerifiedUsers</div>
+                    </div>
+                    <div class="text-success">
+                        <i class="fas fa-check-circle fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card p-4">
+                <div class="d-flex align-items-center">
+                    <div class="flex-grow-1">
+                        <h6 class="text-muted mb-1">Admin Users</h6>
+                        <div class="stat-number">@ViewBag.AdminUsers</div>
+                    </div>
+                    <div class="text-warning">
+                        <i class="fas fa-crown fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card p-4">
+                <div class="d-flex align-items-center">
+                    <div class="flex-grow-1">
+                        <h6 class="text-muted mb-1">Recent Users (30d)</h6>
+                        <div class="stat-number">@ViewBag.RecentUsers</div>
+                    </div>
+                    <div class="text-info">
+                        <i class="fas fa-user-plus fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Section -->
+    <div class="row g-4 mb-4">
+        <div class="col-12">
+            <div class="stat-card p-4">
+                <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+                    <div>
+                        <h5 class="mb-0">
+                            <i class="fas fa-chart-line me-2"></i>
+                            Statistici Utilizatori
+                        </h5>
+                        <small class="text-muted" id="chartInfo">Încarcă date...</small>
+                    </div>
+                    <div class="d-flex gap-2 flex-wrap">
+                        <button class="filter-btn active" onclick="changeFilter(7)">7 Zile</button>
+                        <button class="filter-btn" onclick="changeFilter(30)">30 Zile</button>
+                        <button class="filter-btn" onclick="changeFilter(90)">3 Luni</button>
+                        <button class="filter-btn" onclick="changeFilter(180)">6 Luni</button>
+                        <button class="filter-btn" onclick="changeFilter(365)">1 An</button>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="showDebugInfo()" title="Debug Info">
+                            <i class="fas fa-info-circle"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="row g-4" id="chartsContainer">
+                    <div class="col-lg-6">
+                        <div class="border rounded p-3">
+                            <h6 class="mb-3">
+                                <i class="fas fa-user-plus text-primary me-2"></i>
+                                Utilizatori Înregistrați
+                            </h6>
+                            <div class="chart-container">
+                                <canvas id="registrationChart" style="max-height: 280px;"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-6">
+                        <div class="border rounded p-3">
+                            <h6 class="mb-3">
+                                <i class="fas fa-sign-in-alt text-success me-2"></i>
+                                Logări Zilnice
+                            </h6>
+                            <div class="chart-container">
+                                <canvas id="loginChart" style="max-height: 280px;"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row">
+        <div class="col-12">
+            <div class="stat-card p-4">
+                <h5 class="mb-3">Quick Actions</h5>
+                <div class="d-flex flex-wrap gap-3">
+                    <a asp-controller="Home" asp-action="GetToApi" class="btn btn-outline-primary">
+                        <i class="fas fa-code me-2"></i>API Docs
+                    </a>
+                    <a asp-controller="UserManagement" asp-action="Index" class="btn btn-outline-success">
+                        <i class="fas fa-users-cog me-2"></i>Manage Users
+                    </a>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- User Statistics Modal -->
+<div class="modal fade" id="userStatsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">User Statistics</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>User Distribution</h6>
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between">
+                                <span>Total Users:</span>
+                                <strong>@ViewBag.TotalUsers</strong>
+                            </div>
+                            <div class="d-flex justify-content-between">
+                                <span>Verified Users:</span>
+                                <strong>@ViewBag.VerifiedUsers</strong>
+                            </div>
+                            <div class="d-flex justify-content-between">
+                                <span>Admin Users:</span>
+                                <strong>@ViewBag.AdminUsers</strong>
+                            </div>
+                            <div class="d-flex justify-content-between">
+                                <span>Recent Users:</span>
+                                <strong>@ViewBag.RecentUsers</strong>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Verification Status</h6>
+                        @{
+                            var verifiedPercentage = ViewBag.TotalUsers > 0 ? (ViewBag.VerifiedUsers * 100) / ViewBag.TotalUsers : 0;
+                            var unverifiedCount = ViewBag.TotalUsers - ViewBag.VerifiedUsers;
+                        }
+                        <div class="progress mb-2">
+                            <div class="progress-bar bg-success" style="width: @verifiedPercentage%"></div>
+                        </div>
+                        <small class="text-muted">@verifiedPercentage% verified (@ViewBag.VerifiedUsers/@ViewBag.TotalUsers)</small>
+                        
+                        <div class="mt-3">
+                            <h6>Admin Distribution</h6>
+                            @{
+                                var adminPercentage = ViewBag.TotalUsers > 0 ? (ViewBag.AdminUsers * 100) / ViewBag.TotalUsers : 0;
+                            }
+                            <div class="progress mb-2">
+                                <div class="progress-bar bg-warning" style="width: @adminPercentage%"></div>
+                            </div>
+                            <small class="text-muted">@adminPercentage% admin users</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Chart.js Library -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+<script>
+    function showUserStats() {
+        var modal = new bootstrap.Modal(document.getElementById('userStatsModal'));
+        modal.show();
+    }
+
+    // Variabile globale pentru grafice
+    let registrationChart = null;
+    let loginChart = null;
+    let currentFilter = 7;
+
+    // Configurație comună pentru gradienți
+    function createGradient(ctx, color1, color2) {
+        const gradient = ctx.createLinearGradient(0, 0, 0, 300);
+        gradient.addColorStop(0, color1);
+        gradient.addColorStop(1, color2);
+        return gradient;
+    }
+
+    // Funcție pentru a schimba filtrul
+    function changeFilter(days) {
+        currentFilter = days;
+        
+        // Update active button
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        event.target.classList.add('active');
+        
+        // Reîncarcă graficele
+        loadChartData(days);
+    }
+
+    // Funcție pentru debug info
+    async function showDebugInfo() {
+        try {
+            const response = await fetch('/Home/GetUserStats');
+            const stats = await response.json();
+            
+            console.log('🔍 User Statistics:', stats);
+            
+            let message = `Total Utilizatori: ${stats.totalUsers}\n`;
+            message += `Utilizatori cu Login: ${stats.usersWithLogin}\n\n`;
+            message += `Ultimele 10 Logări:\n`;
+            stats.recentLogins.forEach((user, index) => {
+                message += `${index + 1}. ${user.email}\n`;
+                message += `   Creat: ${new Date(user.createdAt).toLocaleString()}\n`;
+                message += `   Ultima logare: ${user.lastLogin ? new Date(user.lastLogin).toLocaleString() : 'Niciodată'}\n\n`;
+            });
+            
+            alert(message);
+        } catch (error) {
+            console.error('Error fetching debug info:', error);
+            alert('Eroare la încărcarea informațiilor de debug');
+        }
+    }
+
+    // Funcție pentru a încărca datele și a actualiza graficele
+    async function loadChartData(days) {
+        try {
+            // Arată loading indicators
+            document.getElementById('chartsContainer').style.opacity = '0.5';
+            document.getElementById('chartInfo').textContent = 'Încarcă date...';
+            
+            const response = await fetch(`/Home/GetChartData?days=${days}`);
+            const data = await response.json();
+            
+            // Debug info
+            console.log('📊 Chart Data:', {
+                days: days,
+                totalUsers: data.totalUsers,
+                usersWithLogin: data.usersWithLogin,
+                registrationCounts: data.registrationCounts,
+                loginCounts: data.loginCounts
+            });
+            
+            // Actualizează info text
+            const totalRegistrations = data.registrationCounts.reduce((a, b) => a + b, 0);
+            const totalLogins = data.loginCounts.reduce((a, b) => a + b, 0);
+            document.getElementById('chartInfo').textContent = 
+                `${data.totalUsers} utilizatori | ${data.usersWithLogin} cu login | ${totalRegistrations} înregistrări | ${totalLogins} logări în ultimele ${days} zile`;
+            
+            updateCharts(data.registrationDates, data.registrationCounts, data.loginDates, data.loginCounts);
+            
+            // Ascunde loading indicators
+            document.getElementById('chartsContainer').style.opacity = '1';
+        } catch (error) {
+            console.error('❌ Error loading chart data:', error);
+            document.getElementById('chartInfo').textContent = 'Eroare la încărcarea datelor';
+            document.getElementById('chartsContainer').style.opacity = '1';
+        }
+    }
+
+    // Funcție pentru a actualiza sau crea graficele
+    function updateCharts(registrationDates, registrationCounts, loginDates, loginCounts) {
+        const registrationCtx = document.getElementById('registrationChart').getContext('2d');
+        const loginCtx = document.getElementById('loginChart').getContext('2d');
+        
+        // Distruge graficele existente
+        if (registrationChart) {
+            registrationChart.destroy();
+        }
+        if (loginChart) {
+            loginChart.destroy();
+        }
+        
+        // Creează graficul de înregistrări
+        const registrationGradient = createGradient(registrationCtx, 'rgba(102, 126, 234, 0.8)', 'rgba(118, 75, 162, 0.2)');
+        
+        registrationChart = new Chart(registrationCtx, {
+            type: 'line',
+            data: {
+                labels: registrationDates,
+                datasets: [{
+                    label: 'Utilizatori Noi',
+                    data: registrationCounts,
+                    backgroundColor: registrationGradient,
+                    borderColor: '#667eea',
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.4,
+                    pointBackgroundColor: '#667eea',
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2,
+                    pointRadius: 4,
+                    pointHoverRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top',
+                        labels: {
+                            font: {
+                                size: 12,
+                                family: "'Segoe UI', sans-serif"
+                            },
+                            usePointStyle: true,
+                            padding: 15
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        padding: 12,
+                        titleFont: {
+                            size: 14
+                        },
+                        bodyFont: {
+                            size: 13
+                        },
+                        cornerRadius: 8
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1,
+                            font: {
+                                size: 11
+                            }
+                        },
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.05)',
+                            drawBorder: false
+                        }
+                    },
+                    x: {
+                        ticks: {
+                            font: {
+                                size: 10
+                            },
+                            maxRotation: 45,
+                            minRotation: 45
+                        },
+                        grid: {
+                            display: false
+                        }
+                    }
+                }
+            }
+        });
+
+        // Creează graficul de logări
+        const loginGradient = createGradient(loginCtx, 'rgba(40, 167, 69, 0.8)', 'rgba(32, 201, 151, 0.2)');
+        
+        loginChart = new Chart(loginCtx, {
+            type: 'bar',
+            data: {
+                labels: loginDates,
+                datasets: [{
+                    label: 'Logări',
+                    data: loginCounts,
+                    backgroundColor: loginGradient,
+                    borderColor: '#28a745',
+                    borderWidth: 2,
+                    borderRadius: 8,
+                    borderSkipped: false
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top',
+                        labels: {
+                            font: {
+                                size: 12,
+                                family: "'Segoe UI', sans-serif"
+                            },
+                            usePointStyle: true,
+                            padding: 15
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        padding: 12,
+                        titleFont: {
+                            size: 14
+                        },
+                        bodyFont: {
+                            size: 13
+                        },
+                        cornerRadius: 8
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1,
+                            font: {
+                                size: 11
+                            }
+                        },
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.05)',
+                            drawBorder: false
+                        }
+                    },
+                    x: {
+                        ticks: {
+                            font: {
+                                size: 10
+                            },
+                            maxRotation: 45,
+                            minRotation: 45
+                        },
+                        grid: {
+                            display: false
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // Inițializează graficele la încărcarea paginii cu date inițiale din ViewBag
+    document.addEventListener('DOMContentLoaded', function() {
+        // Folosește datele inițiale din ViewBag (7 zile)
+        const initialRegistrationDates = @Html.Raw(ViewBag.RegistrationDates);
+        const initialRegistrationCounts = @Html.Raw(ViewBag.RegistrationCounts);
+        const initialLoginDates = @Html.Raw(ViewBag.LoginDates);
+        const initialLoginCounts = @Html.Raw(ViewBag.LoginCounts);
+        
+        updateCharts(initialRegistrationDates, initialRegistrationCounts, initialLoginDates, initialLoginCounts);
+    });
+</script>
